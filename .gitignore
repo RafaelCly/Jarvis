@@ -1,0 +1,43 @@
+# ---- Secretos: NUNCA commitear ----
+.env
+.env.*
+!.env.example
+*.key
+.cache/          # tokens de spotipy
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Entornos virtuales ----
+.venv/
+venv/
+env/
+
+# ---- Modelos descargados (pesados, se bajan con el setup) ----
+models/
+*.onnx
+*.tflite
+*.gguf
+
+# ---- Datos locales ----
+*.db
+*.sqlite3
+logs/
+*.log
+
+# ---- Editores ----
+.vscode/
+.idea/
+*.swp
+
+# ---- Windows ----
+Thumbs.db
+desktop.ini
+
+# NOTA: tests/fixtures/audio/*.wav SI se commitean.
+# Son el dataset que valida el detector de palmadas (ver PLAN.md §8).
