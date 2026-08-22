@@ -90,6 +90,119 @@ son lo que permite el paralelismo; sin ellos ambos programarían contra aire.
 
 ---
 
+# TAREA 0.0 — Preparación (los dos, en paralelo, desde ya)
+
+**No depende de nada.** Se puede hacer hoy, antes de que exista una línea de código, y
+conviene: las descargas de modelos son lentas y no tiene sentido esperarlas después.
+
+Esta tarea **no genera commits de código**. Es puesta a punto de la máquina de cada uno.
+
+### Para los dos
+
+- [ ] **Verificar Python 3.11**
+
+```bash
+py -0p
+```
+
+Tiene que aparecer `3.11`. Si no está, bajarlo de python.org. **No sirve 3.13 ni 3.14:**
+`onnxruntime` y `faster-whisper` todavía no tienen wheels completos para esas versiones.
+
+- [ ] **Clonar y crear el entorno**
+
+```bash
+git clone https://github.com/RafaelCly/Jarvis.git
+cd Jarvis
+py -3.11 -m venv .venv
+.venv\Scripts\activate
+```
+
+- [ ] **Configurar la identidad de git**
+
+Tiene que coincidir con el usuario de GitHub, porque `CLAUDE.md` lo usa para saber
+qué track te toca.
+
+```bash
+git config user.name        # debe decir RafaelCly o HemsyCA
+```
+
+Si no coincide: `git config --global user.name "TuUsuario"`
+
+- [ ] **Leer PLAN.md** — al menos §1 (qué construimos), §6 (quién hace qué) y §7 (cómo
+  trabajamos juntos). Son diez minutos y evitan la mitad de las preguntas.
+
+### Solo Hemsy
+
+> **Tu máquina es una incógnita del proyecto.** El hardware documentado en PLAN.md §2 es
+> el de Rafael. Vos construís la parte que más exige GPU —Whisper—, así que hay que saber
+> con qué contás antes de llegar a la tarea 1.H3.
+
+- [ ] **Diagnosticar tu máquina y pasarle el resultado a Rafael**
+
+```bash
+python -c "
+import platform, shutil, subprocess
+print('CPU:', platform.processor())
+if shutil.which('nvidia-smi'):
+    print(subprocess.run(['nvidia-smi','--query-gpu=name,memory.total',
+                          '--format=csv,noheader'], capture_output=True, text=True).stdout.strip())
+else:
+    print('GPU NVIDIA: no detectada -> Whisper correra en CPU')
+"
+```
+
+| Resultado | Qué significa para tu track |
+|---|---|
+| GPU NVIDIA con 4 GB+ | Todo normal. `stt.model_size: small`, `device: cuda`. |
+| GPU NVIDIA con menos de 4 GB | Usar `model_size: base`. |
+| Sin GPU NVIDIA | Poné `device: cpu` y `model_size: base` en **tu** `config.yaml`. Vas a transcribir en 1-3 s en vez de 300 ms: molesto para desarrollar, pero funciona. `config.yaml` es local de cada uno, así que no afecta a Rafael. |
+
+- [ ] **Descargar los modelos de wake word** (unos 100 MB, tarda)
+
+```bash
+pip install openwakeword onnxruntime
+python -c "import openwakeword.utils; openwakeword.utils.download_models()"
+```
+
+- [ ] **Descargar la voz de Piper**
+
+De `https://huggingface.co/rhasspy/piper-voices`, los **dos** archivos de
+`es_MX-claude-high` (`.onnx` y `.onnx.json`), a `models/piper/`.
+La carpeta `models/` ya está en `.gitignore`: son archivos pesados y cada uno tiene los suyos.
+
+- [ ] **Identificar tu micrófono**
+
+```bash
+pip install sounddevice
+python -m sounddevice
+```
+
+Anotar el índice del **array interno del laptop**. Si usás auriculares Bluetooth, no los
+elijas: al abrir el micrófono, Windows conmuta a modo Hands-Free y degrada toda la salida
+de audio a mono 8 kHz (PLAN.md §2).
+
+### Solo Rafael
+
+- [ ] **Instalar [Everything](https://www.voidtools.com/)** y habilitar la CLI `es.exe`
+  en el PATH. Es para la skill de archivos de la Fase 3, pero instalarlo ahora deja que
+  el índice se construya tranquilo.
+- [ ] **Cargar los $5 en OpenAI** y generar la API key. Copiar `.env.example` a `.env`
+  y rellenarla. **`.env` nunca se commitea** — ya está en `.gitignore`.
+- [ ] **Crear la app en el [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)**
+  y guardar Client ID y Secret en `.env`.
+
+### ✅ Tarea 0.0 terminada cuando
+
+- Los dos tienen `.venv` con Python 3.11 y el repo clonado
+- Hemsy sabe qué dice su GPU y ya le pasó el dato a Rafael
+- Los modelos están descargados
+- `git config user.name` coincide con el usuario de GitHub de cada uno
+
+**A partir de acá, Rafael arranca la Fase 0 y Hemsy espera a que se fusione.** Es el único
+momento del proyecto en que uno espera al otro.
+
+---
+
 # FASE 0 — Contratos y esqueleto
 
 **Quién:** Rafael escribe, Hemsy revisa. Antes de la tarea 0.2, una llamada de 20 minutos
