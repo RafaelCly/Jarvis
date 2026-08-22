@@ -1,0 +1,21 @@
+# Ajustes propios de TU maquina. Copiar a config.local.yaml y editar.
+#
+# config.local.yaml esta en .gitignore: no se sube, y sus valores pisan a
+# los de config.yaml. Es lo que permite que Rafael corra Whisper en GPU y
+# Hemsy en CPU sin pelearse por el mismo archivo en cada git pull.
+#
+# Poner SOLO lo que difiere del config.yaml compartido. Todo lo que no
+# aparezca aca se hereda.
+
+audio:
+  # Indice de TU microfono. Averigualo con:
+  #     py -3.11 tools_listar_dispositivos.py
+  # Elegir el array interno del laptop, nunca auriculares Bluetooth (PLAN.md §2).
+  input_device_index: 1
+
+# Descomentar solo si tu maquina lo necesita (ver PLAN.md §2.2):
+#
+# stt:
+#   device: cpu          # si no tenes GPU NVIDIA
+#   compute_type: int8   # obligatorio si device es cpu
+#   model_size: base     # si tenes menos de 4 GB de VRAM, o vas por CPU

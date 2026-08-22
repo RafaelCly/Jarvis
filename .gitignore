@@ -5,6 +5,12 @@
 *.key
 .cache/          # tokens de spotipy
 
+# ---- Ajustes propios de cada maquina (PLAN.md §2.3) ----
+# config.yaml SI se commitea: son los valores compartidos.
+# config.local.yaml NO: indice de microfono, cuda vs cpu, tamano del modelo.
+# Sin esta separacion, Rafael y Hemsy chocarian en config.yaml en cada pull.
+config.local.yaml
+
 # ---- Python ----
 __pycache__/
 *.py[cod]

@@ -155,7 +155,7 @@ else:
 |---|---|
 | GPU NVIDIA con 4 GB+ | Todo normal. `stt.model_size: small`, `device: cuda`. |
 | GPU NVIDIA con menos de 4 GB | Usar `model_size: base`. |
-| Sin GPU NVIDIA | Poné `device: cpu` y `model_size: base` en **tu** `config.yaml`. Vas a transcribir en 1-3 s en vez de 300 ms: molesto para desarrollar, pero funciona. `config.yaml` es local de cada uno, así que no afecta a Rafael. |
+| Sin GPU NVIDIA | Poné `stt.device: cpu`, `stt.compute_type: int8` y `stt.model_size: base` en **tu `config.local.yaml`** (nunca en `config.yaml`, que es compartido). Vas a transcribir en 1-3 s en vez de 300 ms: molesto para desarrollar, pero funciona. Ese archivo está en `.gitignore`, así que no afecta a Rafael. |
 
 - [ ] **Descargar los modelos de wake word** (unos 100 MB, tarda)
 
@@ -291,8 +291,8 @@ un comando para averiguarlo.
 # Configuración de Jarvis. Los secretos van en .env, no acá.
 
 audio:
-  # Índice del micrófono. Averigualo con:  python -m sounddevice
-  # DEBE ser el array interno del laptop, NUNCA auriculares Bluetooth (PLAN.md §2).
+  # El índice del micrófono NO va acá: es distinto en cada máquina y daría
+  # conflicto en cada pull. Va en config.local.yaml (PLAN.md §2.3).
   input_device_index: null
   sample_rate: 16000
   channels: 1
@@ -316,6 +316,17 @@ llm:
   model: gpt-4o-mini
   max_tool_iterations: 2
 ```
+
+- [ ] **Paso 7b: Crear `config.local.yaml` desde la plantilla**
+
+`config.local.yaml.example` ya está en el repo. Copiarlo y poner tu índice de micrófono:
+
+```bash
+cp config.local.yaml.example config.local.yaml
+```
+
+Este archivo está en `.gitignore` y no se sube. Es donde cada uno pone lo propio de su
+máquina sin pisar al otro (PLAN.md §2.3).
 
 - [ ] **Paso 8: Verificar que pytest arranca**
 
@@ -1195,6 +1206,45 @@ def test_es_un_config(tmp_path):
     ruta = tmp_path / "config.yaml"
     ruta.write_text(YAML_MINIMO, encoding="utf-8")
     assert isinstance(cargar_config(ruta), Config)
+
+
+def test_config_local_pisa_al_compartido(tmp_path):
+    # El caso real: Rafael tiene GPU y Hemsy no. Cada uno pone lo suyo en
+    # config.local.yaml, que esta en .gitignore, y nadie toca el compartido.
+    compartido = tmp_path / "config.yaml"
+    compartido.write_text(YAML_MINIMO, encoding="utf-8")
+    local = tmp_path / "config.local.yaml"
+    local.write_text("stt:\n  device: cpu\naudio:\n  input_device_index: 7\n")
+
+    config = cargar_config(compartido, local)
+
+    assert config.stt.device == "cpu"
+    assert config.audio.input_device_index == 7
+
+
+def test_config_local_no_borra_lo_que_no_menciona(tmp_path):
+    # Fusion recursiva: poner solo stt.device no debe perder stt.model_size.
+    compartido = tmp_path / "config.yaml"
+    compartido.write_text(YAML_MINIMO, encoding="utf-8")
+    local = tmp_path / "config.local.yaml"
+    local.write_text("stt:\n  device: cpu\n")
+
+    config = cargar_config(compartido, local)
+
+    assert config.stt.device == "cpu"
+    assert config.stt.model_size == "small"   # heredado del compartido
+    assert config.stt.language == "es"
+
+
+def test_funciona_sin_config_local(tmp_path):
+    # No es obligatorio tenerlo: si tu maquina coincide con los valores
+    # compartidos, no hace falta crearlo.
+    compartido = tmp_path / "config.yaml"
+    compartido.write_text(YAML_MINIMO, encoding="utf-8")
+
+    config = cargar_config(compartido, tmp_path / "no-existe.yaml")
+
+    assert config.stt.device == "cuda"
 ```
 
 - [ ] **Paso 2: Correr el test y verificar que falla**
@@ -1273,8 +1323,33 @@ class Config(BaseModel):
         return os.environ.get("OPENAI_API_KEY")
 
 
-def cargar_config(ruta: Path | str = "config.yaml") -> Config:
-    """Carga y valida config.yaml. Lanza FileNotFoundError si no existe."""
+def _fusionar(base: dict, encima: dict) -> dict:
+    """Fusion recursiva: 'encima' pisa a 'base', seccion por seccion.
+
+    Recursiva y no plana para que poner solo stt.device en el archivo local
+    no borre stt.model_size del compartido.
+    """
+    resultado = dict(base)
+    for clave, valor in encima.items():
+        if isinstance(valor, dict) and isinstance(resultado.get(clave), dict):
+            resultado[clave] = _fusionar(resultado[clave], valor)
+        else:
+            resultado[clave] = valor
+    return resultado
+
+
+def cargar_config(
+    ruta: Path | str = "config.yaml",
+    ruta_local: Path | str | None = "config.local.yaml",
+) -> Config:
+    """Carga config.yaml y le superpone config.local.yaml si existe.
+
+    config.yaml esta commiteado y trae los valores compartidos.
+    config.local.yaml esta en .gitignore y trae lo propio de cada maquina:
+    indice de microfono, cuda vs cpu, tamano del modelo. Sin esta
+    separacion, cada uno editaria el compartido y chocarian en cada pull
+    (PLAN.md §2.3).
+    """
     ruta = Path(ruta)
     if not ruta.is_file():
         raise FileNotFoundError(
@@ -1282,6 +1357,13 @@ def cargar_config(ruta: Path | str = "config.yaml") -> Config:
         )
 
     datos = yaml.safe_load(ruta.read_text(encoding="utf-8")) or {}
+
+    if ruta_local is not None:
+        ruta_local = Path(ruta_local)
+        if ruta_local.is_file():
+            locales = yaml.safe_load(ruta_local.read_text(encoding="utf-8")) or {}
+            datos = _fusionar(datos, locales)
+
     return Config(**datos)
 ```
 
@@ -1630,7 +1712,9 @@ for indice, dispositivo in enumerate(sd.query_devices()):
 py -3.11 tools_listar_dispositivos.py
 ```
 
-Poner el índice del array interno en `config.yaml` → `audio.input_device_index`.
+Poner el índice del array interno en **`config.local.yaml`** → `audio.input_device_index`.
+En `config.local.yaml` y no en `config.yaml`, porque el índice es distinto en cada máquina
+y el compartido daría conflicto en cada pull (PLAN.md §2.3).
 
 - [ ] **Paso 4: Escribir el test que falla**
 

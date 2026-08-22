@@ -38,7 +38,15 @@ operaciones de archivos restringidas a una lista blanca de carpetas.
 
 ---
 
-## 2. Hardware verificado
+## 2. Hardware
+
+Somos dos máquinas distintas. **Cada uno documenta la suya en su propia subsección y no
+toca la del otro** — así dos personas pueden editar esta sección sin chocar.
+
+Las diferencias de hardware no se resuelven editando `config.yaml`, que es compartido,
+sino con `config.local.yaml`, que está en `.gitignore`. Ver §2.3.
+
+### 2.1 Máquina de Rafael — verificada
 
 Estas specs fueron leídas de la máquina, no estimadas:
 
@@ -50,7 +58,42 @@ Estas specs fueron leídas de la máquina, no estimadas:
 | Python | 3.11, 3.13 y 3.14 disponibles | **Usar 3.11** — mejor compatibilidad de wheels |
 | Micrófonos | Array Intel Smart Sound (interno) + Redmi Buds 6 Play | Ver advertencia abajo |
 
-### Advertencia crítica: no usar los Redmi Buds como micrófono
+### 2.2 Máquina de Hemsy — pendiente
+
+> **Hemsy: completá esta tabla en tu propio PR.** El diagnóstico está en la tarea 0.0 del
+> plan de implementación. Importa más de lo que parece: vos construís Whisper, que es la
+> pieza que más exige GPU de todo el proyecto.
+
+| Componente | Valor | Implicación |
+|---|---|---|
+| CPU | *(pendiente)* | |
+| RAM | *(pendiente)* | |
+| GPU | *(pendiente)* | |
+| Micrófonos | *(pendiente)* | |
+
+Según lo que salga:
+
+| Tu GPU | Qué poner en tu `config.local.yaml` |
+|---|---|
+| NVIDIA con 4 GB o más | Nada. Los valores compartidos te sirven. |
+| NVIDIA con menos de 4 GB | `stt.model_size: base` |
+| Sin GPU NVIDIA | `stt.device: cpu` y `stt.model_size: base`. Vas a transcribir en 1-3 s en vez de 300 ms. Molesto para desarrollar, pero funciona. |
+
+### 2.3 Ajustes por máquina: `config.local.yaml`
+
+`config.yaml` está commiteado y tiene los valores compartidos. Pero hay tres cosas que
+son **necesariamente distintas en cada máquina** y que, si se editaran ahí, darían
+conflicto en cada `git pull`:
+
+- `audio.input_device_index` — el índice del micrófono no coincide entre computadoras
+- `stt.device` — `cuda` o `cpu` según haya GPU
+- `stt.model_size` — según cuánta VRAM haya
+
+Para eso está `config.local.yaml`: **está en `.gitignore`, no se sube, y sus valores pisan
+a los de `config.yaml`.** Cada uno tiene el suyo y nadie afecta al otro. Hay una plantilla
+en `config.local.yaml.example`.
+
+### Advertencia crítica: no usar auriculares Bluetooth como micrófono
 
 Bluetooth no puede transmitir audio de alta calidad y capturar micrófono al mismo tiempo.
 Cuando se activa el micrófono de unos auriculares BT, Windows conmuta el perfil de A2DP
@@ -58,7 +101,8 @@ Cuando se activa el micrófono de unos auriculares BT, Windows conmuta el perfil
 Jarvis te escuche, la música de Spotify se degrada a calidad de radio de taxi.
 
 **Configuración obligatoria:** entrada = array interno del laptop, salida = lo que quieras.
-Esto se fija explícitamente en `config.yaml` por índice de dispositivo, nunca "por defecto".
+El índice se fija explícitamente en `config.local.yaml`, nunca "por defecto" — y va ahí y no
+en `config.yaml` porque el índice es distinto en cada máquina (§2.3).
 
 ---
 
