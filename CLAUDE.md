@@ -82,14 +82,43 @@ Estrategia completa en [PLAN.md §7](PLAN.md).
 
 ## 4. Cómo arrancar una sesión de trabajo
 
-1. `git config user.name` → identificá el track.
-2. `git pull origin main` → traé lo último.
-3. Mirá en qué fase estamos ([PLAN.md §8](PLAN.md)) y qué tareas quedan del track.
-4. Proponé **una** tarea concreta y esperá confirmación antes de escribir código.
-5. Creá la rama antes de tocar archivos.
+**Hacé estos cinco pasos antes de proponer nada.** No los saltes aunque la persona diga
+"seguí" o "continuá": sin ellos podés proponer una tarea cuyo prerrequisito todavía no
+está fusionado, y se pierde media sesión.
+
+1. **`git config user.name`** → identificá el track (§1).
+2. **`git pull origin main`** → traé lo último.
+3. **Averiguá qué está hecho, no lo supongas:**
+
+   ```bash
+   git log --oneline -15          # qué se fusionó ya
+   git branch -a                  # qué hay en vuelo
+   pytest -q                      # ¿main está sano?
+   ```
+
+4. **Abrí el plan vigente** de `docs/superpowers/plans/` y ubicá la primera tarea del
+   track de esta persona que **no** esté hecha. Verificá que sus prerrequisitos —el bloque
+   `Interfaces: Consume` de la tarea— ya existan en el árbol.
+5. **Proponé UNA tarea concreta y esperá confirmación.** Recién después creá la rama.
+
+**Si la tarea que toca está bloqueada** porque falta algo del otro track, decilo y proponé
+la alternativa desbloqueada del mismo track. No empieces a construir el prerrequisito de
+la otra persona: eso cruza la frontera (§1) y genera un conflicto en el PR de ambos.
 
 No arranques a programar sin que la persona confirme qué tarea es. El plan tiene orden
 por una razón: cada fase termina en algo demostrable.
+
+### Dónde está cada cosa
+
+| Documento | Para qué |
+|---|---|
+| [PLAN.md](PLAN.md) | El diseño: por qué cada decisión es como es |
+| `docs/superpowers/plans/*.md` | Las tareas concretas: qué archivo crear y en qué orden |
+| Este archivo | Las reglas de convivencia entre los dos tracks |
+
+Los planes cubren de a una o dos fases. Cuando el plan vigente se termina, **no improvises
+la fase siguiente**: se planifica cuando la anterior está etiquetada, porque lo aprendido
+cambia decisiones.
 
 ---
 
