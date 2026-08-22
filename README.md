@@ -37,13 +37,36 @@ freeware. El cálculo está en [PLAN.md §3](PLAN.md).
 
 ## Equipo
 
-| | Track | Carpetas |
+| Quién | Track | Carpetas |
 |---|---|---|
-| Persona A | Oídos, Voz e Interfaz | `ears/`, `voice/`, `ui/` |
-| Persona B | Cerebro y Manos | `brain/`, `skills/` |
+| **Rafael** | Cerebro y Manos — orquestación LLM, tool calling y skills | `brain/`, `skills/` |
+| **Hemsy** | Oídos, Voz e Interfaz — audio, transcripción, TTS y UI | `ears/`, `voice/`, `ui/` |
+| Los dos | Contratos y costuras | `core/`, `main.py` |
 
 Los contratos compartidos (`core/events.py` y `skills/base.py`) se escriben entre los dos
 antes que nada. Ver [PLAN.md §6](PLAN.md).
+
+## Cómo trabajamos
+
+Trunk-based con ramas cortas. `main` siempre funciona y **nada entra sin Pull Request**.
+
+```bash
+git checkout main && git pull origin main
+git checkout -b rafael/brain-tool-calling     # <nombre>/<área>-<qué>
+# ...trabajar, commits pequeños...
+git push -u origin rafael/brain-tool-calling
+gh pr create --fill
+```
+
+- Ramas de **1 a 3 días**. Más largas se vuelven bombas de conflictos.
+- Revisión cruzada siempre: cada uno es dueño de la mitad del código, y el PR es el único
+  momento en que el otro la mira.
+- **Los cambios a `core/` van en su propio PR, pequeño y avisado.** Es la regla que evita
+  el 90% de los conflictos.
+- Merge con **squash**, para que `main` se lea como la lista de features.
+
+La estrategia completa —cadencia, revisión, chuleta de emergencia— está en
+[PLAN.md §7](PLAN.md).
 
 ## Puesta en marcha
 

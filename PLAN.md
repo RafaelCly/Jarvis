@@ -4,7 +4,7 @@
 > entiende órdenes en español y ejecuta acciones sobre el sistema, tus tareas y Spotify.
 
 **Fecha:** 2026-08-20
-**Equipo:** 2 personas (nivel de Python similar)
+**Equipo:** Rafael (Cerebro y Manos) · Hemsy (Oídos, Voz e Interfaz)
 **Presupuesto:** $5 USD de créditos OpenAI — única inversión monetaria
 **Estado:** Diseño aprobado, pendiente de implementación
 
@@ -151,9 +151,9 @@ Premium, se cambia una línea de config y el resto del sistema no se entera.
 | Spotify | `spotipy` + `winsdk` + `pycaw` | Ver §3. |
 | Config | `pydantic-settings` + `config.yaml` + `.env` | Secretos en `.env` (gitignored), ajustes en YAML. |
 | Logs | `rich` | Consola legible con estados y timings, que es lo que más se depura acá. |
-| Interfaz — bandeja | **`pystray`** | Icono de estado en la bandeja del sistema. Ver §9. |
-| Interfaz — HUD | **`pywebview`** (WebView2) | HUD flotante escrito en HTML/CSS. Fase 4, sujeto a spike. Ver §9. |
-| Tests | `pytest` | Ver §8. |
+| Interfaz — bandeja | **`pystray`** | Icono de estado en la bandeja del sistema. Ver §10. |
+| Interfaz — HUD | **`pywebview`** (WebView2) | HUD flotante escrito en HTML/CSS. Fase 4, sujeto a spike. Ver §10. |
+| Tests | `pytest` | Ver §9. |
 
 ### `requirements.txt` inicial
 
@@ -176,7 +176,7 @@ pywin32>=306
 pyyaml>=6.0
 rich>=13.7
 
-# Interfaz (ver §9)
+# Interfaz (ver §10)
 pystray>=0.19          # Fase 2
 Pillow>=10.0           # iconos de la bandeja
 pywebview>=5.0         # Fase 4, sujeto al spike R9
@@ -310,27 +310,27 @@ jarvis/
 │   ├── bus.py               pub/sub asyncio
 │   ├── state.py             máquina de estados
 │   └── config.py            pydantic-settings
-├── ears/                ◄── PERSONA A
+├── ears/                ◄── HEMSY
 │   ├── capture.py           InputStream + buffer circular
 │   ├── clap.py              detector de palmadas
 │   ├── wakeword.py          openWakeWord
 │   ├── vad.py               silero-vad + endpointing
 │   └── stt.py               faster-whisper
-├── voice/               ◄── PERSONA A
+├── voice/               ◄── HEMSY
 │   ├── base.py              interfaz TTSEngine
 │   ├── piper_tts.py
 │   └── edge_tts.py
-├── brain/               ◄── PERSONA B
+├── brain/               ◄── RAFAEL
 │   ├── router.py            reglas rápidas
 │   ├── llm.py               tool calling
 │   └── registry.py          registro y despacho de skills
-├── skills/              ◄── PERSONA B
+├── skills/              ◄── RAFAEL
 │   ├── base.py          ◄── CONTRATO: interfaz Skill
 │   ├── files.py             Everything / es.exe
 │   ├── tasks.py             SQLite
 │   ├── spotify.py           spotipy + SMTC + pycaw
 │   └── system.py            hora, apps, volumen general
-├── ui/                  ◄── PERSONA A
+├── ui/                  ◄── HEMSY
 │   ├── console.py           salida rich (Fase 1)
 │   ├── tray.py              icono de bandeja + estados (Fase 2)
 │   └── hud/                 HUD flotante (Fase 4)
@@ -397,10 +397,10 @@ es escribir una clase y nada más** — no hay que tocar el prompt ni el orquest
 ## 6. División del trabajo
 
 Como ambos están parejos en Python, la división es simétrica y sigue el eje del pipeline.
-Ninguno de los dos tracks es "el fácil": A pelea con DSP y tiempo real, B con diseño de
+Ninguno de los dos tracks es "el fácil": Hemsy pelea con DSP y tiempo real; Rafael, con diseño de
 API e integraciones del SO.
 
-| | **Persona A — "Oídos y Voz"** | **Persona B — "Cerebro y Manos"** |
+| | **Hemsy — "Oídos, Voz e Interfaz"** | **Rafael — "Cerebro y Manos"** |
 |---|---|---|
 | **Dominio** | Todo lo que es señal de audio, más lo que el usuario ve | Todo lo que es decisión y acción |
 | **Carpetas** | `ears/`, `voice/`, `ui/` | `brain/`, `skills/` |
@@ -416,9 +416,9 @@ pena escribirlos juntos.
 
 Después de la Fase 0, cada uno programa contra un doble del otro:
 
-- **A** publica eventos reales en el bus, y un consumidor de prueba los imprime en consola.
+- **Hemsy** publica eventos reales en el bus, y un consumidor de prueba los imprime en consola.
   No necesita que exista ninguna skill.
-- **B** usa `main.py --text-mode`, un flag que **salta todo el pipeline de audio** y lee
+- **Rafael** usa `main.py --text-mode`, un flag que **salta todo el pipeline de audio** y lee
   comandos por teclado desde stdin. No necesita micrófono ni GPU.
 
 Ese flag `--text-mode` es la pieza más importante para la productividad del equipo: permite
@@ -427,7 +427,193 @@ tests end-to-end sean triviales. **Vale la pena construirlo en la Fase 0.**
 
 ---
 
-## 7. Fases
+## 7. Estrategia de trabajo en equipo
+
+### 7.1 La ventaja que ya está en el diseño
+
+La división de §6 no es solo un reparto de tareas: es **una estrategia de merge**. Rafael
+y Hemsy tocan carpetas disjuntas, así que la inmensa mayoría de los commits de uno ni
+siquiera rozan archivos del otro. Git no tiene nada que resolver.
+
+| Zona | Dueño | Riesgo de conflicto |
+|---|---|---|
+| `brain/`, `skills/` | Rafael | Ninguno — Hemsy no entra |
+| `ears/`, `voice/`, `ui/` | Hemsy | Ninguno — Rafael no entra |
+| `core/`, `main.py`, `config.yaml` | **Compartido** | **Aquí se concentra el 100% del riesgo** |
+| `requirements.txt` | Compartido | Bajo, pero conflictúa fácil por líneas adyacentes |
+
+Todo lo que sigue existe para proteger esa cuarta fila. El resto se cuida solo.
+
+### 7.2 Modelo de ramas: *trunk-based* con ramas cortas
+
+Nada de GitFlow, ni ramas `develop`, `release` o `hotfix`. Para dos personas eso es
+ceremonia sin beneficio. El modelo es:
+
+```
+main ──●────●────●────●────●────●──►   siempre funciona
+        \        /      \      /
+         ●──●──●         ●──●──         ramas de 1-3 días
+```
+
+**Reglas:**
+
+1. **`main` siempre funciona.** Si alguien clona y ejecuta, arranca. No se rompe `main`
+   "un ratito"; en un equipo de dos, `main` roto bloquea al 50% de la plantilla.
+2. **Nunca se commitea directo a `main`.** Todo entra por Pull Request.
+3. **Ramas cortas: de 1 a 3 días.** Una rama de dos semanas es una bomba de conflictos.
+   Si una tarea es más larga, se parte en piezas que se puedan fusionar por separado.
+4. **Una rama = una cosa.** No se mezcla "wake word" con "arreglar el TTS".
+
+**Nombres de rama:** `<nombre>/<área>-<qué>`
+
+```
+rafael/brain-tool-calling
+rafael/skills-spotify-smtc
+hemsy/ears-wakeword
+hemsy/ui-tray-icon
+```
+
+El prefijo con el nombre hace que `git branch -a` se lea de un vistazo y deja claro a
+quién preguntarle por una rama abandonada.
+
+### 7.3 El ciclo diario
+
+```bash
+# 1. Antes de empezar a trabajar — siempre, todos los días
+git checkout main
+git pull origin main
+
+# 2. Rama nueva desde main actualizado
+git checkout -b hemsy/ears-vad
+
+# 3. Trabajar. Commits pequeños y frecuentes (no hace falta que compilen)
+git add -A
+git commit -m "feat(ears): endpointing con silero-vad"
+
+# 4. Si la rama lleva más de un día, traer los cambios de main
+git pull --rebase origin main
+
+# 5. Subir y abrir PR
+git push -u origin hemsy/ears-vad
+gh pr create --fill
+```
+
+**Sobre el paso 4:** usar `--rebase` y no `merge`. Mantiene el historial lineal y evita
+llenar `main` de commits "Merge branch 'main' into...". Regla simple: **rebase en tu rama,
+squash al entrar a `main`, nunca rebase de algo ya publicado que el otro esté usando.**
+
+### 7.4 Pull Requests: por qué, siendo solo dos
+
+La tentación de saltarse los PR con dos personas es fuerte y es un error. La razón no es
+control de calidad — es que **cada uno es dueño exclusivo de la mitad del código**. Sin
+revisión cruzada, el *bus factor* del proyecto es 1 en cada mitad: si Hemsy desaparece una
+semana, Rafael no sabe cómo funciona el detector de palmadas, y viceversa.
+
+El PR es el único momento en que cada uno mira el código del otro. Esa es su función real.
+
+| | Quién revisa |
+|---|---|
+| PR de Rafael (`brain/`, `skills/`) | Hemsy |
+| PR de Hemsy (`ears/`, `voice/`, `ui/`) | Rafael |
+| PR que toca `core/` | **Los dos, obligatorio** |
+
+**Qué mirar al revisar.** No estilo ni nombres de variables — eso es ruido. La pregunta
+única es: *si mañana tengo que tocar esto sin que estés, ¿lo entiendo?* Si la respuesta es
+no, el comentario correcto no es "cambiá esto", es "explicame esto" — y a veces la
+respuesta es un comentario en el código, no un refactor.
+
+**Merge con squash.** Cada PR entra a `main` como **un solo commit** con el título del PR.
+Los 12 commits de "wip", "arreglo typo", "ahora sí" quedan en el historial de la rama y no
+ensucian `main`. Con squash, `git log main --oneline` se lee como la lista de features del
+proyecto.
+
+**Autofusión:** el que abre el PR lo fusiona después de la aprobación. El revisor aprueba,
+no fusiona — así el autor controla el momento.
+
+### 7.5 La regla que evita el 90% de los dolores: contratos primero
+
+El único archivo que puede hacerles perder una tarde es `core/events.py`. Si Rafael añade
+un campo a `SpeechTranscribed` mientras Hemsy está reescribiendo quién lo emite, el merge
+duele y, peor, el código queda roto de formas silenciosas.
+
+> **Los cambios a `core/` van en su propio PR, pequeño, primero, y avisando.**
+> Nunca mezclados dentro de un PR de feature.
+
+El flujo cuando alguien necesita un evento o campo nuevo:
+
+1. Avisar por el canal que usen: *"necesito un campo `confidence` en `SpeechTranscribed`"*.
+2. PR mínimo que solo toca `core/events.py`. Se revisa en minutos.
+3. Se fusiona a `main`.
+4. **Los dos hacen `git pull`.**
+5. Recién entonces cada uno construye encima.
+
+Cuesta diez minutos y evita la clase de conflicto que no la resuelve Git, sino una llamada.
+
+### 7.6 Cadencia
+
+| Cuándo | Qué |
+|---|---|
+| **Cada mañana** | `git pull origin main` antes de tocar nada. No negociable. |
+| **Al abrir un PR** | Avisar. Un PR sin revisar 24 h bloquea a quien lo abrió. |
+| **Al empezar cada fase** | Sync de 20 min: qué construye cada uno, qué contratos cambian, qué necesita uno del otro. |
+| **Al cerrar cada fase** | Demo funcionando + `git tag fase-N`. Es el punto de retorno seguro. |
+
+Las fases de §8 ya están diseñadas para que ambos tengan trabajo en paralelo en todas.
+Ninguno queda esperando — ese fue el criterio para ordenarlas así.
+
+### 7.7 Organización de tareas
+
+**GitHub Issues + Milestones.** Un milestone por fase (`Fase 1 — Escucha y responde`), un
+issue por tarea, etiquetas `ears` / `brain` / `skills` / `ui` / `core`. Cada PR cierra su
+issue con `Closes #12` en la descripción.
+
+Es suficiente para dos personas y vive junto al código. Un tablero externo (Trello, Notion)
+añade un sitio más que sincronizar a mano y se desactualiza en dos semanas.
+
+### 7.8 Configuración del repositorio
+
+Conviene dejarlo puesto desde el principio, cuando cuesta un minuto:
+
+- **Proteger `main`:** exigir Pull Request antes de fusionar, y al menos 1 aprobación.
+  Es gratis en repos públicos. Convierte las reglas de §7.2 en algo que el servidor hace
+  cumplir, en vez de algo que hay que recordar.
+- **Squash merge como única opción:** desactivar *merge commit* y *rebase merge* en los
+  ajustes del repo. Así nadie se equivoca de botón.
+- **Borrado automático de ramas** al fusionar, para que la lista no se llene de basura.
+- **`.github/CODEOWNERS`:** asigna el revisor automáticamente según la carpeta tocada.
+  Ya está en el repo.
+
+### 7.9 Chuleta de emergencia
+
+```bash
+# Me equivoqué de rama y trabajé sobre main sin commitear
+git stash && git checkout -b rafael/lo-que-sea && git stash pop
+
+# Committeé en main por error (aún sin push)
+git branch rafael/rescate && git reset --hard origin/main && git checkout rafael/rescate
+
+# Conflicto al hacer rebase
+git status                  # ver qué archivos
+# ...editar y resolver...
+git add <archivo> && git rebase --continue
+git rebase --abort          # si se complica, abortar y pedir ayuda
+
+# Quiero ver qué cambió el otro desde ayer
+git fetch origin && git log --oneline main..origin/main
+
+# Subí algo secreto por error  -->  NO intentar arreglarlo solo:
+# 1. Revocar la credencial inmediatamente (OpenAI / Spotify)
+# 2. Generar una nueva
+# 3. Después, limpiar el historial
+```
+
+Ese último caso es el único de la lista que es una emergencia real. **Borrar el commit no
+sirve de nada: la clave ya se filtró en cuanto se subió.** Lo primero es siempre revocar,
+no limpiar. El repositorio es público, así que el margen es de minutos, no de horas.
+
+---
+
+## 8. Fases
 
 Cada fase termina en algo que funciona y se puede demostrar. No hay fase que entregue
 "la mitad de un pipeline".
@@ -442,7 +628,7 @@ Es poco código, pero es lo que desbloquea todo el paralelismo posterior.
 
 ### Fase 1 — "Escucha y responde" (primer corte vertical)
 
-| Persona A | Persona B |
+| Hemsy | Rafael |
 |---|---|
 | `capture.py` + selección explícita de dispositivo | `router.py` con 5 reglas |
 | `wakeword.py` con el modelo "hey jarvis" | `skills/system.py`: hora, fecha, saludo |
@@ -456,12 +642,12 @@ Es poco código, pero es lo que desbloquea todo el paralelismo posterior.
 
 ### Fase 2 — El cerebro y las palmadas
 
-| Persona A | Persona B |
+| Hemsy | Rafael |
 |---|---|
 | `clap.py` + dataset de fixtures de audio | `llm.py`: tool calling contra OpenAI |
 | `vad.py` + endpointing (fin de frase real) | `registry.py`: generar `tools` desde las skills |
 | Gate half-duplex durante `SPEAKING` | Manejo de errores y fallbacks del LLM |
-| **`ui/tray.py` — icono de bandeja con estados** (§9) | |
+| **`ui/tray.py` — icono de bandeja con estados** (§10) | |
 
 **Terminada cuando:** doble palmada activa, una orden que ninguna regla cubre
 (*"decime algo que me anime"*) llega al LLM y se resuelve, y **el icono de bandeja refleja
@@ -470,13 +656,13 @@ diario, no solo demostrar.
 
 ### Fase 3 — Las manos
 
-Todo Persona B, con A dando soporte en integración:
+Todo de Rafael, con Hemsy dando soporte en integración:
 
 - `skills/files.py` — Everything/`es.exe`, con lista blanca de carpetas
 - `skills/tasks.py` — SQLite: agregar, listar, completar pendientes
 - `skills/spotify.py` — `SpotifyController` + implementación Free (search, startfile, SMTC, pycaw)
 
-Persona A en paralelo:
+Hemsy en paralelo:
 
 - Afinar umbrales con datos reales de uso.
 - Probar `medium` / `large-v3-turbo` de Whisper para ver si mejora la transcripción de
@@ -490,19 +676,19 @@ Persona A en paralelo:
 
 ### Fase 4 — HUD y pulido (cuando lo anterior esté sólido)
 
-**Persona A — el HUD** (§9): ventana flotante translúcida con orbe reactivo al nivel del
+**Hemsy — el HUD** (§10): ventana flotante translúcida con orbe reactivo al nivel del
 micrófono, transcripción en vivo y respuesta. Antes de escribir el HTML, invocar la skill
 **`ui-ux-pro-max`** para fijar paleta, escala tipográfica, especificación de estados y
 motion. Recién en este punto tiene sentido: ya se sabe qué estados emite el bus de verdad.
 
-**Persona B — profundidad del cerebro:** historial de conversación para preguntas de
+**Rafael — profundidad del cerebro:** historial de conversación para preguntas de
 seguimiento (*"y la siguiente?"*), más skills (clima, notas, WhatsApp).
 
 **Compartido:** *barge-in* con cancelación de eco · arranque automático con Windows.
 
 ---
 
-## 8. Estrategia de testing
+## 9. Estrategia de testing
 
 El problema obvio de un proyecto de voz es que parece que hay que hablarle a la
 computadora para probarlo. No es así, y evitarlo es lo que hace el desarrollo llevadero.
@@ -523,7 +709,7 @@ un ciclo medible de segundos.
 
 ---
 
-## 9. Interfaz de usuario
+## 10. Interfaz de usuario
 
 Jarvis se maneja por voz, así que la interfaz no es el canal principal — es
 **retroalimentación de estado**. Su trabajo es responder una sola pregunta:
@@ -591,14 +777,14 @@ segundo producto, no parte de este.
 
 ### A quién le toca
 
-**El peldaño 2 y el 3 son de Persona A.** Encaja por dos razones: su carga baja en Fase 3
-—para entonces solo está afinando umbrales— mientras B todavía tiene tres skills por
+**Los peldaños 2 y 3 son de Hemsy.** Encaja por dos razones: su carga baja en Fase 3
+—para entonces solo está afinando umbrales— mientras Rafael todavía tiene tres skills por
 construir; y A ya tiene en la mano el dato que el orbe necesita para animarse, que es el
 nivel de audio en tiempo real del buffer de captura. Nadie más lo tiene tan a mano.
 
 ---
 
-## 10. Riesgos y mitigaciones
+## 11. Riesgos y mitigaciones
 
 | # | Riesgo | Probabilidad | Mitigación |
 |---|---|---|---|
@@ -614,7 +800,7 @@ nivel de audio en tiempo real del buffer de captura. Nadie más lo tiene tan a m
 
 ---
 
-## 11. Checklist de arranque
+## 12. Checklist de arranque
 
 Antes de escribir la primera línea:
 
@@ -630,7 +816,7 @@ Antes de escribir la primera línea:
 
 ---
 
-## 12. Decisiones tomadas y descartadas
+## 13. Decisiones tomadas y descartadas
 
 | Decisión | Elegido | Descartado | Razón |
 |---|---|---|---|
@@ -648,7 +834,7 @@ Antes de escribir la primera línea:
 
 ---
 
-## 13. Respuestas directas a las preguntas iniciales
+## 14. Respuestas directas a las preguntas iniciales
 
 **¿Basta gpt-4o-mini?**
 Sí, de sobra. La tarea es clasificación de intención con extracción de parámetros. Con la
@@ -662,6 +848,6 @@ Free el control de reproducción va por SMTC y `startfile` en vez de por la API,
 anuncios y shuffle ocasional (§3).
 
 **¿Cómo se divide el trabajo entre dos?**
-Persona A toma el eje del audio (`ears/`, `voice/`); Persona B toma el eje de la decisión y
+Hemsy toma el eje del audio y la interfaz (`ears/`, `voice/`, `ui/`); Rafael toma el eje de la decisión y
 la acción (`brain/`, `skills/`). Se acuerdan dos contratos en la Fase 0 y a partir de ahí
 trabajan en paralelo sin bloquearse, cada uno contra un doble del otro (§6).
