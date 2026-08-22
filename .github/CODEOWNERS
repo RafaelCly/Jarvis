@@ -1,24 +1,26 @@
 # Asigna revisor automaticamente segun la carpeta que toca el PR.
 # Ver PLAN.md seccion 7.4.
 #
-# PENDIENTE: reemplazar @HEMSY-USERNAME por el usuario real de GitHub de Hemsy.
-# GitHub ignora en silencio las entradas con usuarios inexistentes, asi que
-# mientras no se corrija, los PR de Rafael no van a pedir revision automatica.
+# Rafael Chu    (@RafaelCly) -> Cerebro y Manos
+# Hemsy Cardenas (@HemsyCA)  -> Oidos, Voz e Interfaz
+#
+# Nota: CODEOWNERS solo asigna revisores que tengan acceso de escritura al repo.
+# Empieza a funcionar en cuanto Hemsy acepte la invitacion; no hay que tocar nada.
 
 # Por defecto, los dos miran
-*                       @RafaelCly @HEMSY-USERNAME
+*                       @RafaelCly @HemsyCA
 
 # Cerebro y Manos -> Rafael
 /brain/                 @RafaelCly
 /skills/                @RafaelCly
 
 # Oidos, Voz e Interfaz -> Hemsy
-/ears/                  @HEMSY-USERNAME
-/voice/                 @HEMSY-USERNAME
-/ui/                    @HEMSY-USERNAME
+/ears/                  @HemsyCA
+/voice/                 @HemsyCA
+/ui/                    @HemsyCA
 
 # Contratos compartidos -> revision obligatoria de los dos
-/core/                  @RafaelCly @HEMSY-USERNAME
-/main.py                @RafaelCly @HEMSY-USERNAME
-/config.yaml            @RafaelCly @HEMSY-USERNAME
-/requirements.txt       @RafaelCly @HEMSY-USERNAME
+/core/                  @RafaelCly @HemsyCA
+/main.py                @RafaelCly @HemsyCA
+/config.yaml            @RafaelCly @HemsyCA
+/requirements.txt       @RafaelCly @HemsyCA
