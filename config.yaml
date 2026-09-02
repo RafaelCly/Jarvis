@@ -1,0 +1,28 @@
+# Configuración compartida de Jarvis. Los secretos van en .env.
+# Los ajustes propios de cada máquina van en config.local.yaml (PLAN.md §2.3).
+
+audio:
+  # El índice del micrófono NO va acá: es distinto en cada máquina.
+  # Va en config.local.yaml.
+  input_device_index: null
+  sample_rate: 16000
+  channels: 1
+  block_size: 1280        # 80 ms a 16 kHz, lo que espera openWakeWord
+
+wakeword:
+  model: hey_jarvis
+  threshold: 0.5
+
+stt:
+  model_size: small
+  device: cuda            # "cuda" o "cpu"; hay fallback automático a cpu
+  compute_type: float16
+  language: es
+
+tts:
+  engine: piper
+  voice: es_MX-claude-high
+
+llm:
+  model: gpt-4o-mini
+  max_tool_iterations: 2
