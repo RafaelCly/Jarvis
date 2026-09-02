@@ -7,7 +7,7 @@
 **Objetivo:** Que decir *"oye Jarvis, qué hora es"* haga que Jarvis responda en voz alta.
 
 **Arquitectura:** Un bus de eventos asíncrono conecta dos mitades que se desarrollan en
-paralelo. Hemsy convierte audio del micrófono en un evento `SpeechTranscribed`; Rafael
+paralelo. Un lado convierte audio del micrófono en un evento `SpeechTranscribed`; el otro
 convierte ese evento en una acción y un evento `SpeakRequested`. Ninguna mitad importa
 módulos de la otra: solo conocen `core/`.
 
@@ -45,28 +45,28 @@ Qué crea cada tarea y de quién es la responsabilidad.
 
 | Archivo | Responsabilidad | Tarea | Dueño |
 |---|---|---|---|
-| `core/events.py` | Definición de los eventos. **El contrato.** | 0.2 | Ambos |
-| `core/bus.py` | Pub/sub asíncrono, seguro entre hilos | 0.3 | Ambos |
-| `core/state.py` | Máquina de estados y gate half-duplex | 0.4 | Ambos |
-| `skills/base.py` | Interfaz `Skill` y `SkillResult`. **El contrato.** | 0.5 | Ambos |
-| `core/config.py` | Carga de `config.yaml` y `.env` | 0.6 | Ambos |
-| `main.py` | Arranque, cableado, `--text-mode` | 0.7 | Ambos |
-| `skills/system.py` | Hora, fecha, saludo | 1.R3 | Rafael |
-| `brain/registry.py` | Registro y despacho de skills | 1.R1 | Rafael |
-| `brain/router.py` | Reglas rápidas sin LLM | 1.R2 | Rafael |
-| `ears/capture.py` | Captura de micrófono y buffer circular | 1.H1 | Hemsy |
-| `ears/wakeword.py` | Detección de "hey jarvis" | 1.H2 | Hemsy |
-| `ears/stt.py` | Transcripción con faster-whisper | 1.H3 | Hemsy |
-| `voice/base.py` | Interfaz `TTSEngine` | 1.H4 | Hemsy |
-| `voice/piper_tts.py` | Síntesis local con Piper | 1.H4 | Hemsy |
-| `ui/console.py` | Estados y latencias en consola | 1.H5 | Hemsy |
+| `core/events.py` | Definición de los eventos. **El contrato.** | 0.2 | base |
+| `core/bus.py` | Pub/sub asíncrono, seguro entre hilos | 0.3 | base |
+| `core/state.py` | Máquina de estados y gate half-duplex | 0.4 | base |
+| `skills/base.py` | Interfaz `Skill` y `SkillResult`. **El contrato.** | 0.5 | base |
+| `core/config.py` | Carga de `config.yaml` y `.env` | 0.6 | base |
+| `main.py` | Arranque, cableado, `--text-mode` | 0.7 | base |
+| `skills/system.py` | Hora, fecha, saludo | 1.R3 | cerebro |
+| `brain/registry.py` | Registro y despacho de skills | 1.R1 | cerebro |
+| `brain/router.py` | Reglas rápidas sin LLM | 1.R2 | cerebro |
+| `ears/capture.py` | Captura de micrófono y buffer circular | 1.H1 | audio |
+| `ears/wakeword.py` | Detección de "hey jarvis" | 1.H2 | audio |
+| `ears/stt.py` | Transcripción con faster-whisper | 1.H3 | audio |
+| `voice/base.py` | Interfaz `TTSEngine` | 1.H4 | audio |
+| `voice/piper_tts.py` | Síntesis local con Piper | 1.H4 | audio |
+| `ui/console.py` | Estados y latencias en consola | 1.H5 | audio |
 
 ---
 
 ## Orden de ejecución
 
 ```
-FASE 0  (secuencial, la hace Rafael, la revisa Hemsy con atención)
+FASE 0  (secuencial: nada de la Fase 1 arranca sin esto)
   0.1 -> 0.2 -> 0.3 -> 0.4 -> 0.5 -> 0.6 -> 0.7
                           |
                     [ MERGE A MAIN ]
@@ -123,7 +123,7 @@ Tiene que coincidir con el usuario de GitHub, porque `CLAUDE.md` lo usa para sab
 qué track te toca.
 
 ```bash
-git config user.name        # debe decir RafaelCly o HemsyCA
+git config user.name        # debe decir RafaelCly
 ```
 
 Si no coincide: `git config --global user.name "TuUsuario"`
@@ -131,13 +131,12 @@ Si no coincide: `git config --global user.name "TuUsuario"`
 - [ ] **Leer PLAN.md** — al menos §1 (qué construimos), §6 (quién hace qué) y §7 (cómo
   trabajamos juntos). Son diez minutos y evitan la mitad de las preguntas.
 
-### Solo Hemsy
+### Diagnóstico de la máquina
 
-> **Tu máquina es una incógnita del proyecto.** El hardware documentado en PLAN.md §2 es
-> el de Rafael. Vos construís la parte que más exige GPU —Whisper—, así que hay que saber
-> con qué contás antes de llegar a la tarea 1.H3.
+> Ya está documentado en PLAN.md §2, pero conviene reconfirmarlo: de la GPU depende si
+> Whisper transcribe en 300 ms o en 3 segundos, y eso cambia cómo se siente todo.
 
-- [ ] **Diagnosticar tu máquina y pasarle el resultado a Rafael**
+- [ ] **Diagnosticar la máquina**
 
 ```bash
 python -c "
@@ -151,7 +150,7 @@ else:
 "
 ```
 
-| Resultado | Qué significa para tu track |
+| Resultado | Qué significa |
 |---|---|
 | GPU NVIDIA con 4 GB+ | Todo normal. `stt.model_size: small`, `device: cuda`. |
 | GPU NVIDIA con menos de 4 GB | Usar `model_size: base`. |
@@ -181,7 +180,7 @@ Anotar el índice del **array interno del laptop**. Si usás auriculares Bluetoo
 elijas: al abrir el micrófono, Windows conmuta a modo Hands-Free y degrada toda la salida
 de audio a mono 8 kHz (PLAN.md §2).
 
-### Solo Rafael
+### Credenciales y herramientas externas
 
 - [ ] **Instalar [Everything](https://www.voidtools.com/)** y habilitar la CLI `es.exe`
   en el PATH. Es para la skill de archivos de la Fase 3, pero instalarlo ahora deja que
@@ -193,20 +192,20 @@ de audio a mono 8 kHz (PLAN.md §2).
 
 ### ✅ Tarea 0.0 terminada cuando
 
-- Los dos tienen `.venv` con Python 3.11 y el repo clonado
-- Hemsy sabe qué dice su GPU y ya le pasó el dato a Rafael
+- `.venv` con Python 3.11 y las dependencias instaladas
+- La GPU está confirmada
 - Los modelos están descargados
-- `git config user.name` coincide con el usuario de GitHub de cada uno
+- `config.local.yaml` tiene el índice del micrófono
 
-**A partir de acá, Rafael arranca la Fase 0 y Hemsy espera a que se fusione.** Es el único
-momento del proyecto en que uno espera al otro.
+**Nada de esto bloquea la Fase 0**, que es Python puro: ni audio, ni OpenAI, ni Spotify.
+Se puede hacer en paralelo mientras se descargan los modelos.
 
 ---
 
 # FASE 0 — Contratos y esqueleto
 
-**Quién:** Rafael escribe, Hemsy revisa. Antes de la tarea 0.2, una llamada de 20 minutos
-entre los dos para acordar los eventos: es el contrato con el que Hemsy va a vivir.
+Sin audio, sin OpenAI, sin Spotify. Python puro con `pydantic` y `pytest`, así que se
+puede hacer antes de tener nada instalado ni ninguna credencial.
 
 **Rama:** `rafael/core-contratos-y-esqueleto` (una sola rama para toda la Fase 0)
 
@@ -357,9 +356,9 @@ git commit -m "feat(core): esqueleto de paquetes, config y entorno de tests"
   `StateChanged`, `ErrorOccurred`, y el alias `Event`. Todo el resto del sistema importa
   desde acá.
 
-> **Este es el archivo más importante del proyecto.** Hemsy tiene que estar de acuerdo con
-> él antes de que se fusione. Cambiarlo después obliga a los dos a hacer `git pull` y
-> puede romper código en silencio.
+> **Este es el archivo más importante del proyecto.** Todo lo demás depende de él, así que
+> vale la pena pensar los eventos con calma acá: cambiarlos más adelante rompe código en
+> silencio en capas que ni siquiera estás mirando.
 
 Decisión de diseño: los eventos son `frozen=True` (inmutables). Un evento es un hecho que
 ya ocurrió; si un handler pudiera modificarlo, el siguiente handler recibiría algo
@@ -682,8 +681,9 @@ Esperado: `ModuleNotFoundError: No module named 'core.bus'`
 """
 Bus de eventos en proceso.
 
-Es la costura entre los dos tracks: Hemsy publica eventos de audio, Rafael
-los consume, y ninguno importa modulos del otro.
+Desacopla las capas: ears/ publica eventos de audio, brain/ los consume, y
+ninguno importa modulos del otro. Eso es lo que permite testear cada pieza
+sola y que --text-mode inyecte texto a mitad del pipeline.
 """
 
 import asyncio
@@ -1209,8 +1209,8 @@ def test_es_un_config(tmp_path):
 
 
 def test_config_local_pisa_al_compartido(tmp_path):
-    # El caso real: Rafael tiene GPU y Hemsy no. Cada uno pone lo suyo en
-    # config.local.yaml, que esta en .gitignore, y nadie toca el compartido.
+    # config.yaml esta commiteado; config.local.yaml esta en .gitignore y
+    # lleva lo propio de esta maquina (PLAN.md §2).
     compartido = tmp_path / "config.yaml"
     compartido.write_text(YAML_MINIMO, encoding="utf-8")
     local = tmp_path / "config.local.yaml"
@@ -1632,9 +1632,8 @@ git push -u origin rafael/core-contratos-y-esqueleto
 gh pr create --fill
 ```
 
-> **Hemsy revisa este PR con atención.** No es un PR normal: está aprobando el contrato
-> contra el que va a programar toda la Fase 1. Si algo de `events.py` no le cierra, este
-> es el momento barato de cambiarlo.
+> **Antes de seguir, releé `core/events.py` una vez más.** Es el contrato contra el que se
+> programa toda la Fase 1. Si algo no cierra, este es el momento barato de cambiarlo.
 
 ---
 
@@ -1654,13 +1653,13 @@ Antes de empezar, ambos: `git checkout main && git pull origin main`.
 
 ---
 
-## Track de Hemsy — `ears/`, `voice/`, `ui/`
+## Bloque de audio y voz — `ears/`, `voice/`, `ui/`
 
 ---
 
 ### Tarea 1.H1: `ears/capture.py` — captura de micrófono
 
-**Rama:** `hemsy/ears-captura`
+**Rama:** `rafael/ears-captura`
 
 **Archivos:**
 - Crear: `ears/capture.py`, `tools_listar_dispositivos.py`
@@ -1891,7 +1890,7 @@ Si el nivel es 0, el índice de dispositivo está mal.
 ```bash
 git add ears/capture.py tools_listar_dispositivos.py tests/test_capture.py requirements.txt
 git commit -m "feat(ears): captura de microfono con buffer circular"
-git push -u origin hemsy/ears-captura
+git push -u origin rafael/ears-captura
 gh pr create --fill
 ```
 
@@ -1899,7 +1898,7 @@ gh pr create --fill
 
 ### Tarea 1.H2: `ears/wakeword.py` — detección de "hey jarvis"
 
-**Rama:** `hemsy/ears-wakeword`
+**Rama:** `rafael/ears-wakeword`
 
 **Archivos:**
 - Crear: `ears/wakeword.py`
@@ -2087,7 +2086,7 @@ apunta desde `config.yaml` → `wakeword.model`.
 ```bash
 git add ears/wakeword.py tests/test_wakeword.py requirements.txt
 git commit -m "feat(ears): deteccion de wake word con openWakeWord"
-git push -u origin hemsy/ears-wakeword
+git push -u origin rafael/ears-wakeword
 gh pr create --fill
 ```
 
@@ -2098,7 +2097,7 @@ que entrenar un modelo propio, y Rafael necesita saberlo.
 
 ### Tarea 1.H3: `ears/stt.py` — transcripción con faster-whisper
 
-**Rama:** `hemsy/ears-stt`
+**Rama:** `rafael/ears-stt`
 
 **Archivos:**
 - Crear: `ears/stt.py`
@@ -2315,7 +2314,7 @@ Esperado en la RTX 4050 con `small`: **200-400 ms**. Si supera 2 s, está en CPU
 ```bash
 git add ears/stt.py tests/test_stt.py tests/fixtures/audio/ requirements.txt
 git commit -m "feat(ears): transcripcion con faster-whisper y fallback a CPU"
-git push -u origin hemsy/ears-stt
+git push -u origin rafael/ears-stt
 gh pr create --fill
 ```
 
@@ -2323,7 +2322,7 @@ gh pr create --fill
 
 ### Tarea 1.H4: `voice/` — síntesis de voz con Piper
 
-**Rama:** `hemsy/voice-piper`
+**Rama:** `rafael/voice-piper`
 
 **Archivos:**
 - Crear: `voice/base.py`, `voice/piper_tts.py`
@@ -2491,7 +2490,7 @@ Se implementa como `voice/edge_tts.py` detrás del mismo Protocol, sin tocar nad
 ```bash
 git add voice/ tests/test_tts.py requirements.txt
 git commit -m "feat(voice): sintesis local con Piper"
-git push -u origin hemsy/voice-piper
+git push -u origin rafael/voice-piper
 gh pr create --fill
 ```
 
@@ -2499,7 +2498,7 @@ gh pr create --fill
 
 ### Tarea 1.H5: `ui/console.py` — estados y latencias en consola
 
-**Rama:** `hemsy/ui-console`
+**Rama:** `rafael/ui-console`
 
 **Archivos:**
 - Crear: `ui/console.py`
@@ -2638,16 +2637,16 @@ Esperado: 3 passed
 ```bash
 git add ui/console.py tests/test_ui_console.py
 git commit -m "feat(ui): salida de consola con estados y latencias"
-git push -u origin hemsy/ui-console
+git push -u origin rafael/ui-console
 gh pr create --fill
 ```
 
 ---
 
-## Track de Rafael — `brain/`, `skills/`
+## Bloque de cerebro — `brain/`, `skills/`
 
-Todo este track se desarrolla con `python main.py --text-mode`. **No hace falta micrófono
-ni esperar a que Hemsy termine nada.**
+Todo este bloque se desarrolla con `python main.py --text-mode`. **No hace falta micrófono
+ni GPU**, así que conviene hacerlo antes que el audio.
 
 ---
 
@@ -3299,12 +3298,12 @@ gh pr create --fill
 
 ---
 
-### Tarea 1.FINAL: Integración con audio (los dos juntos)
+### Tarea 1.FINAL: Integración con audio
 
 **Rama:** `rafael/integracion-fase-1`
 
 Requiere **todas** las tareas anteriores fusionadas. Es el momento en que las dos mitades
-se tocan por primera vez, así que conviene hacerlo en una llamada.
+—el audio y el cerebro— se tocan por primera vez.
 
 **Archivos:**
 - Modificar: `main.py`
@@ -3363,8 +3362,7 @@ async def bucle_audio(app: JarvisApp, config) -> None:
 
 - [ ] **Paso 2: Añadir `ultimo_segundo_n()` a `ears/capture.py`**
 
-Generaliza `ultimo_segundo()`. Requiere un PR de Hemsy o su visto bueno explícito, porque
-toca su carpeta.
+Generaliza `ultimo_segundo()` de la tarea 1.H1.
 
 ```python
     def ultimo_segundo_n(self, segundos: int) -> np.ndarray:

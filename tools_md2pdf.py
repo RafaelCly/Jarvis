@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 try:
     import markdown
@@ -96,29 +97,45 @@ def main() -> None:
         f"<title>{src.stem}</title><style>{CSS}</style></head><body>{body}</body></html>"
     )
 
-    # Edge necesita una ruta sin espacios para el file:// y un perfil propio en headless.
-    with tempfile.TemporaryDirectory() as tmp:
+    # Edge necesita un perfil propio en headless. ignore_cleanup_errors porque
+    # Edge deja abierto el directorio Crashpad un rato despues de terminar y
+    # el borrado del temporal fallaria.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
         tmp_path = pathlib.Path(tmp)
         html_file = tmp_path / "doc.html"
         pdf_file = tmp_path / "doc.pdf"
         html_file.write_text(html, encoding="utf-8")
 
-        subprocess.run(
+        proceso = subprocess.run(
             [
                 find_edge(),
                 "--headless=new",
                 "--disable-gpu",
+                "--no-first-run",
+                "--no-default-browser-check",
                 f"--user-data-dir={tmp_path / 'profile'}",
                 "--no-pdf-header-footer",
                 f"--print-to-pdf={pdf_file}",
                 html_file.as_uri(),
             ],
-            check=True,
             capture_output=True,
+            text=True,
+            timeout=120,
         )
 
-        if not pdf_file.exists():
-            sys.exit("Edge no genero el PDF.")
+        # Edge devuelve antes de terminar de escribir el archivo.
+        for _ in range(40):
+            if pdf_file.exists() and pdf_file.stat().st_size > 0:
+                break
+            time.sleep(0.25)
+        else:
+            sys.exit(
+                "Edge no generó el PDF.\n"
+                f"  código de salida: {proceso.returncode}\n"
+                f"  stderr: {proceso.stderr[-500:] or '(vacío)'}\n"
+                "Si hay Edge abierto, cerralo y volvé a intentar."
+            )
+
         shutil.copy(pdf_file, dst)
 
     print(f"OK  {src.name} -> {dst.name}  ({dst.stat().st_size / 1024:.0f} KB)")

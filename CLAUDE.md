@@ -3,132 +3,91 @@
 Asistente de voz local para Windows 11: palmadas y wake word para activarlo, órdenes
 en español, acciones sobre el sistema, tareas y Spotify.
 
+Proyecto de una sola persona (Rafael, `@RafaelCly`).
+
 **La fuente de verdad del diseño es [PLAN.md](PLAN.md).** Este archivo es el resumen
 operativo. Ante cualquier duda de arquitectura, presupuesto o alcance, leé PLAN.md antes
 de proponer nada.
 
 ---
 
-## 1. Con quién estás hablando
+## 1. Cómo arrancar una sesión
 
-**Averigualo antes de proponer trabajo.** Somos dos personas con tracks distintos:
+**Hacé estos cuatro pasos antes de proponer nada.** No los saltes aunque te digan "seguí":
+sin ellos podés proponer una tarea cuyo prerrequisito no existe todavía.
 
-```bash
-git config user.name
-```
-
-| Si es | Track | Carpetas que le tocan |
-|---|---|---|
-| `RafaelCly` / Rafael | **Cerebro y Manos** | `brain/`, `skills/` |
-| `HemsyCA` / Hemsy | **Oídos, Voz e Interfaz** | `ears/`, `voice/`, `ui/` |
-| Otro / no coincide | — | **Preguntá antes de seguir** |
-
-**Rafael** construye la orquestación con el LLM: el router de reglas, el tool calling
-contra OpenAI, el registro de skills, y las skills de archivos, tareas y Spotify.
-
-**Hemsy** construye todo el camino del audio: captura, detección de palmadas, wake word,
-VAD, transcripción con Whisper, síntesis de voz, y la interfaz (bandeja y HUD).
-
-### Respetá los límites del track
-
-No edites archivos del track de la otra persona sin que te lo pidan explícitamente.
-Si una tarea parece necesitarlo, **decilo y proponé la alternativa** — normalmente
-significa que falta un evento en `core/`, no que haya que cruzar la frontera.
-
----
-
-## 2. La regla más importante: `core/` es sagrado
-
-`core/events.py` y `skills/base.py` son los contratos que permiten que dos personas
-trabajen en paralelo sin pisarse. Todo el riesgo de conflicto del proyecto está ahí.
-
-> **Los cambios a `core/` van en su propio PR, pequeño, primero, y avisando a la otra
-> persona.** Nunca mezclados dentro de un PR de feature.
-
-Si durante una tarea hace falta un evento o un campo nuevo:
-
-1. Pará.
-2. Decíselo a quien estés ayudando, para que avise a la otra persona.
-3. PR mínimo que solo toca `core/`.
-4. Fusionar, que ambos hagan `git pull`.
-5. Recién entonces seguir con la feature.
-
-Ver [PLAN.md §7.5](PLAN.md).
-
----
-
-## 3. Flujo de trabajo con git
-
-**Nunca commitees a `main`.** Todo entra por rama y Pull Request.
-
-```bash
-git checkout main && git pull origin main
-git checkout -b rafael/brain-tool-calling      # <nombre>/<área>-<qué>
-# ...trabajar...
-git push -u origin rafael/brain-tool-calling
-gh pr create --fill
-```
-
-- Ramas cortas, de 1 a 3 días. Si la tarea es más larga, partila.
-- Una rama = una cosa.
-- Commits en español, con prefijo de área: `feat(ears):`, `fix(brain):`, `docs:`.
-- El merge es siempre **squash** (ya es la única opción configurada en el repo).
-- Revisión cruzada: el PR de uno lo revisa el otro. Es lo que evita que cada mitad del
-  código la entienda una sola persona.
-
-Estrategia completa en [PLAN.md §7](PLAN.md).
-
----
-
-## 4. Cómo arrancar una sesión de trabajo
-
-**Hacé estos cinco pasos antes de proponer nada.** No los saltes aunque la persona diga
-"seguí" o "continuá": sin ellos podés proponer una tarea cuyo prerrequisito todavía no
-está fusionado, y se pierde media sesión.
-
-1. **`git config user.name`** → identificá el track (§1).
-2. **`git pull origin main`** → traé lo último.
-3. **Averiguá qué está hecho, no lo supongas:**
+1. **`git pull origin main`** → traé lo último.
+2. **Averiguá qué está hecho, no lo supongas:**
 
    ```bash
-   git log --oneline -15          # qué se fusionó ya
-   git branch -a                  # qué hay en vuelo
-   pytest -q                      # ¿main está sano?
+   git log --oneline -15     # qué se fusionó ya
+   pytest -q                 # ¿main está sano?
    ```
 
-4. **Abrí el plan vigente** de `docs/superpowers/plans/` y ubicá la primera tarea del
-   track de esta persona que **no** esté hecha. Verificá que sus prerrequisitos —el bloque
-   `Interfaces: Consume` de la tarea— ya existan en el árbol.
-5. **Proponé UNA tarea concreta y esperá confirmación.** Recién después creá la rama.
-
-**Si la tarea que toca está bloqueada** porque falta algo del otro track, decilo y proponé
-la alternativa desbloqueada del mismo track. No empieces a construir el prerrequisito de
-la otra persona: eso cruza la frontera (§1) y genera un conflicto en el PR de ambos.
-
-No arranques a programar sin que la persona confirme qué tarea es. El plan tiene orden
-por una razón: cada fase termina en algo demostrable.
-
-### Dónde está cada cosa
-
-| Documento | Para qué |
-|---|---|
-| [PLAN.md](PLAN.md) | El diseño: por qué cada decisión es como es |
-| `docs/superpowers/plans/*.md` | Las tareas concretas: qué archivo crear y en qué orden |
-| Este archivo | Las reglas de convivencia entre los dos tracks |
+3. **Abrí el plan vigente** de `docs/superpowers/plans/` y ubicá la primera tarea que
+   **no** esté hecha. Verificá que sus prerrequisitos —el bloque `Interfaces: Consume`—
+   ya existan en el árbol.
+4. **Proponé UNA tarea concreta y esperá confirmación.** Recién después empezá.
 
 Los planes cubren de a una o dos fases. Cuando el plan vigente se termina, **no improvises
 la fase siguiente**: se planifica cuando la anterior está etiquetada, porque lo aprendido
 cambia decisiones.
 
+| Documento | Para qué |
+|---|---|
+| [PLAN.md](PLAN.md) | El diseño: por qué cada decisión es como es |
+| `docs/superpowers/plans/*.md` | Las tareas concretas: qué archivo crear y en qué orden |
+| Este archivo | Cómo trabajar en el repo |
+
 ---
 
-## 5. Stack y comandos
+## 2. Organización del código
+
+| Carpeta | Responsabilidad |
+|---|---|
+| `core/` | Eventos, bus, máquina de estados, config. **Las costuras.** |
+| `ears/` | Captura, palmadas, wake word, VAD, transcripción |
+| `voice/` | Síntesis de voz |
+| `ui/` | Consola, bandeja del sistema, HUD |
+| `brain/` | Router de reglas, tool calling, registro de skills |
+| `skills/` | Las capacidades: archivos, tareas, Spotify, sistema |
+
+**`core/` se toca con cuidado.** Es de lo que depende todo lo demás: un campo nuevo en un
+evento puede romper cosas en silencio tres capas más abajo. Los cambios a `core/` van en
+su propio commit, nunca mezclados dentro de uno de feature. Así, si algo se rompe, se sabe
+en qué commit mirar.
+
+---
+
+## 3. Flujo de trabajo con git
+
+**`main` siempre tiene que funcionar.** Si clonás y ejecutás, arranca.
+
+Rama por tarea o por grupo chico de tareas relacionadas:
+
+```bash
+git checkout main && git pull origin main
+git checkout -b rafael/brain-tool-calling      # rafael/<área>-<qué>
+# ...trabajar, un commit por paso significativo...
+git checkout main && git merge --ff-only rafael/brain-tool-calling
+git push origin main
+```
+
+- Ramas cortas, de 1 a 3 días. Si la tarea es más larga, partila.
+- Commits en español, con prefijo de área: `feat(ears):`, `fix(brain):`, `docs:`.
+- **Un commit por tarea del plan.** El historial de `main` se lee como la lista de tareas.
+- Merge con `--ff-only` para conservar esos commits. No hace falta squash: cada commit
+  ya es limpio y corresponde a algo concreto.
+- Al cerrar una fase: `git tag fase-N`. Es el punto de retorno seguro.
+
+---
+
+## 4. Stack y comandos
 
 **Python 3.11** — no 3.13 ni 3.14, que tienen wheels incompletos para `onnxruntime`
 y `faster-whisper`.
 
 ```bash
-py -3.11 -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
@@ -147,9 +106,14 @@ Si estás trabajando en `brain/` o `skills/`, usalo siempre.
 `spotipy` + SMTC (`winsdk`) · SQLite. Justificación de cada una en
 [PLAN.md §4](PLAN.md).
 
+**Configuración:** `config.yaml` está commiteado y trae los valores compartidos.
+`config.local.yaml` está en `.gitignore` y trae lo propio de esta máquina —índice de
+micrófono, `cuda` vs `cpu`—, para que el repo no lleve rutas ni índices de una
+computadora concreta. Los secretos van en `.env`, también ignorado.
+
 ---
 
-## 6. Reglas que no se rompen
+## 5. Reglas que no se rompen
 
 **El LLM nunca ejecuta código.** Solo elige el nombre de una función de una lista fija y
 rellena parámetros que se validan con pydantic antes de ejecutar nada. Jarvis escucha
@@ -166,17 +130,17 @@ limpiar el historial. Borrar el commit no sirve — el repo es público y la cla
 
 **El micrófono es el array interno del laptop, nunca unos auriculares Bluetooth.**
 Bluetooth conmuta a modo Hands-Free al abrir el micro y degrada toda la salida de audio
-a mono 8 kHz. Se fija por índice explícito en `config.yaml`. Ver [PLAN.md §2](PLAN.md).
+a mono 8 kHz. Se fija por índice explícito en `config.local.yaml`. Ver [PLAN.md §2](PLAN.md).
 
 ---
 
-## 7. Al escribir código
+## 6. Al escribir código
 
 - Español en comentarios, docstrings, mensajes de commit y texto que oye el usuario.
   Inglés en nombres de variables, funciones y clases.
 - Módulos chicos y con una responsabilidad. Si un archivo crece mucho, está haciendo
   demasiado.
+- **Test primero.** Escribir el test, verlo fallar, implementar, verlo pasar, commitear.
 - Los módulos de audio se testean con fixtures WAV, sin micrófono. Las skills se testean
-  llamando `execute()` directo, sin voz ni LLM. Ver [PLAN.md §9](PLAN.md).
-- Antes de añadir una dependencia, agregala a `requirements.txt` y decilo — toca un
-  archivo compartido.
+  llamando `execute()` directo, sin voz ni LLM. Ver [PLAN.md §8](PLAN.md).
+- Antes de añadir una dependencia, agregala a `requirements.txt` en el mismo commit.

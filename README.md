@@ -3,8 +3,8 @@
 Asistente de voz local para Windows 11. Se activa por palmadas o por wake word,
 entiende órdenes en español y ejecuta acciones sobre el sistema, tus tareas y Spotify.
 
-> **Estado: fase de diseño.** Todavía no hay código. El diseño está cerrado y
-> documentado en **[PLAN.md](PLAN.md)** — empezá por ahí.
+> **Estado: Fase 0 completa.** Los contratos, el bus, la máquina de estados y el modo
+> texto ya funcionan. El diseño está en **[PLAN.md](PLAN.md)**.
 
 ---
 
@@ -32,48 +32,39 @@ Detalle y justificación de cada elección en [PLAN.md §4](PLAN.md).
 ## Presupuesto
 
 **$5 USD de créditos OpenAI, una sola vez.** Alcanzan para ~21,000 comandos, cerca de
-2 años de uso normal entre dos personas. Todo el resto del stack es open source o
+2 años de uso normal. Todo el resto del stack es open source o
 freeware. El cálculo está en [PLAN.md §3](PLAN.md).
 
-## Equipo
+## Cómo trabajo en el repo
 
-| Quién | Track | Carpetas |
-|---|---|---|
-| **Rafael** | Cerebro y Manos — orquestación LLM, tool calling y skills | `brain/`, `skills/` |
-| **Hemsy** | Oídos, Voz e Interfaz — audio, transcripción, TTS y UI | `ears/`, `voice/`, `ui/` |
-| Los dos | Contratos y costuras | `core/`, `main.py` |
-
-Los contratos compartidos (`core/events.py` y `skills/base.py`) se escriben entre los dos
-antes que nada. Ver [PLAN.md §6](PLAN.md).
-
-## Cómo trabajamos
-
-Trunk-based con ramas cortas. `main` siempre funciona y **nada entra sin Pull Request**.
+`main` siempre funciona. Una rama por tarea, merge con `--ff-only` para que el historial
+se lea como la lista de tareas hechas.
 
 ```bash
 git checkout main && git pull origin main
-git checkout -b rafael/brain-tool-calling     # <nombre>/<área>-<qué>
-# ...trabajar, commits pequeños...
-git push -u origin rafael/brain-tool-calling
-gh pr create --fill
+git checkout -b rafael/brain-tool-calling     # rafael/<área>-<qué>
+# ...trabajar...
+git checkout main && git merge --ff-only rafael/brain-tool-calling
 ```
 
-- Ramas de **1 a 3 días**. Más largas se vuelven bombas de conflictos.
-- Revisión cruzada siempre: cada uno es dueño de la mitad del código, y el PR es el único
-  momento en que el otro la mira.
-- **Los cambios a `core/` van en su propio PR, pequeño y avisado.** Es la regla que evita
-  el 90% de los conflictos.
-- Merge con **squash**, para que `main` se lea como la lista de features.
+**Los cambios a `core/` van en su propio commit**, nunca mezclados con una feature: es de
+lo que depende todo lo demás, y separarlo es lo que hace que `git bisect` sirva de algo.
 
-La estrategia completa —cadencia, revisión, chuleta de emergencia— está en
-[PLAN.md §7](PLAN.md).
+Detalle completo en [PLAN.md §7](PLAN.md).
 
 ## Puesta en marcha
 
-Todavía no aplica — no hay código. El checklist de lo que hay que preparar antes de la
-primera línea está en [PLAN.md §11](PLAN.md): venv con Python 3.11, instalar
-[Everything](https://www.voidtools.com/), crear la app en el Spotify Developer Dashboard
-y cargar los créditos de OpenAI.
+```bash
+py -3.11 -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+cp config.local.yaml.example config.local.yaml
+
+pytest                       # 46 tests
+python main.py --text-mode   # escribí "ping", responde "pong"
+```
+
+La clave de OpenAI todavía no hace falta: llega en la Fase 2, con el tool calling.
 
 ### Regenerar el PDF
 
