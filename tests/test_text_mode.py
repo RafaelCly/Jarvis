@@ -50,3 +50,31 @@ async def test_procesar_dos_veces_seguidas_funciona():
     app = JarvisApp(bus=EventBus())
     assert await app.procesar_texto("ping") == "pong"
     assert await app.procesar_texto("ping") == "pong"
+
+
+async def test_responde_la_hora_por_texto():
+    app = JarvisApp(bus=EventBus())
+    assert "son las" in (await app.procesar_texto("qué hora es")).lower()
+
+
+async def test_responde_la_fecha_por_texto():
+    app = JarvisApp(bus=EventBus())
+    assert "hoy es" in (await app.procesar_texto("qué día es hoy")).lower()
+
+
+async def test_responde_al_saludo():
+    app = JarvisApp(bus=EventBus())
+    assert len(await app.procesar_texto("hola")) > 0
+
+
+async def test_una_orden_sin_regla_avisa_que_falta_el_llm():
+    # En la Fase 2 esto sube al LLM. Por ahora tiene que decirlo claro,
+    # no quedarse mudo.
+    app = JarvisApp(bus=EventBus())
+    respuesta = await app.procesar_texto("ponme algo tranquilo para estudiar")
+    assert respuesta
+
+
+async def test_el_registro_tiene_las_skills_esperadas():
+    app = JarvisApp(bus=EventBus())
+    assert set(app.registro.nombres()) >= {"ping", "decir_hora", "decir_fecha", "saludar"}

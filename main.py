@@ -15,33 +15,60 @@ import sys
 
 from rich.console import Console
 
-# Windows usa cp1252 por defecto, asi que "todavía" sale como "todav?a" en
-# cuanto se redirige la salida. Todo lo que dice Jarvis lleva acentos.
-if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
+def _forzar_utf8() -> None:
+    """Windows usa cp1252 por defecto y eso rompe los acentos.
 
+    En la salida, "todavía" sale como "todav?a". En la entrada es peor:
+    "qué hora es" llega como "quÃ© hora es" y el router deja de reconocerlo.
+
+    stdin solo se toca si viene de una tuberia o un archivo. En una consola
+    interactiva Python ya lee Unicode nativo, y reconfigurarlo lo empeora.
+    """
+    if sys.platform != "win32":
+        return
+
+    for flujo in (sys.stdout, sys.stderr):
+        if hasattr(flujo, "reconfigure"):
+            flujo.reconfigure(encoding="utf-8")
+
+    # Bajo pytest, sys.stdin es un doble sin reconfigure() ni isatty() util.
+    try:
+        if hasattr(sys.stdin, "reconfigure") and not sys.stdin.isatty():
+            sys.stdin.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
+
+
+_forzar_utf8()
+
+from brain.registry import SkillRegistry
+from brain.router import RuleRouter
 from core.bus import EventBus
 from core.events import SpeakRequested, SpeechTranscribed
 from core.state import State, StateMachine
-from skills.base import Skill, SkillResult
+from skills.base import SkillResult
 from skills.ping import PingSkill
+from skills.system import DecirFechaSkill, DecirHoraSkill, SaludarSkill
 
 console = Console()
 
 
 class JarvisApp:
-    """Cablea el bus, la maquina de estados y las skills."""
+    """Cablea el bus, la maquina de estados, el router y las skills."""
 
     def __init__(self, bus: EventBus) -> None:
         self.bus = bus
         self.maquina = StateMachine(bus)
-        self.skills: dict[str, Skill] = {}
+        self.router = RuleRouter()
+        self.registro = SkillRegistry()
 
-        self._registrar(PingSkill())
-
-    def _registrar(self, skill: Skill) -> None:
-        self.skills[skill.name] = skill
+        for skill in (
+            PingSkill(),
+            DecirHoraSkill(),
+            DecirFechaSkill(),
+            SaludarSkill(),
+        ):
+            self.registro.registrar(skill)
 
     async def procesar_texto(self, texto: str) -> str:
         """Recorre el pipeline desde texto ya transcrito hasta la respuesta."""
@@ -53,20 +80,31 @@ class JarvisApp:
         await self.maquina.transition_to(State.TRANSCRIBING)
         await self.maquina.transition_to(State.THINKING)
 
-        # Despacho provisional por nombre exacto. La tarea 1.R4 lo reemplaza
-        # por el router de reglas y el registro de skills.
-        skill = self.skills.get(texto.strip().lower())
-        if skill is None:
-            resultado = SkillResult(ok=False, speech="No sé hacer eso todavía.")
-        else:
-            await self.maquina.transition_to(State.ACTING)
-            resultado = await skill.execute(skill.params_model())
+        resultado = await self._decidir(texto)
 
         await self.maquina.transition_to(State.SPEAKING)
         await self.bus.publish(SpeakRequested(text=resultado.speech))
         await self.maquina.transition_to(State.IDLE)
 
         return resultado.speech
+
+    async def _decidir(self, texto: str) -> SkillResult:
+        """Router de reglas primero; lo que no matchea ira al LLM."""
+        resuelto = self.router.resolver(texto)
+
+        # "ping" no tiene regla porque es de diagnostico, no un comando real.
+        if resuelto is None and texto.strip().lower() in self.registro.nombres():
+            resuelto = (texto.strip().lower(), {})
+
+        if resuelto is None:
+            # Fase 2: acá se llama al LLM con tool calling.
+            return SkillResult(
+                ok=False, speech="Todavía no sé responder eso. Me falta el cerebro."
+            )
+
+        nombre, argumentos = resuelto
+        await self.maquina.transition_to(State.ACTING)
+        return await self.registro.ejecutar(nombre, argumentos)
 
 
 async def bucle_texto(app: JarvisApp) -> None:
