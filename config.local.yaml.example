@@ -1,8 +1,8 @@
 # Ajustes propios de TU maquina. Copiar a config.local.yaml y editar.
 #
 # config.local.yaml esta en .gitignore: no se sube, y sus valores pisan a
-# los de config.yaml. Es lo que permite que Rafael corra Whisper en GPU y
-# Hemsy en CPU sin pelearse por el mismo archivo en cada git pull.
+# los de config.yaml. Sirve para que el repo, que es publico, no lleve el
+# indice de microfono ni los ajustes de GPU de una computadora concreta.
 #
 # Poner SOLO lo que difiere del config.yaml compartido. Todo lo que no
 # aparezca aca se hereda.
@@ -13,9 +13,18 @@ audio:
   # Elegir el array interno del laptop, nunca auriculares Bluetooth (PLAN.md §2).
   input_device_index: 1
 
-# Descomentar solo si tu maquina lo necesita (ver PLAN.md §2.2):
+# Descomentar solo si tu maquina lo necesita (ver PLAN.md §2):
 #
 # stt:
-#   device: cpu          # si no tenes GPU NVIDIA
+#   device: cpu          # si no hay GPU NVIDIA
 #   compute_type: int8   # obligatorio si device es cpu
-#   model_size: base     # si tenes menos de 4 GB de VRAM, o vas por CPU
+#   model_size: base     # si hay menos de 4 GB de VRAM, o se va por CPU
+
+# El modelo hey_jarvis esta entrenado con voces sinteticas en INGLES. Con
+# una pronunciacion en español la confianza suele quedar muy por debajo del
+# 0.5 por defecto. Medilo antes de tocar esto:
+#     py -3.11 tools_probar_wakeword.py            <- cuanto alcanza tu voz
+#     py -3.11 tools_probar_wakeword.py --falsos   <- que no se dispare solo
+#
+# wakeword:
+#   threshold: 0.12

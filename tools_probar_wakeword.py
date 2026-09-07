@@ -70,7 +70,40 @@ def veredicto(confianza_maxima: float, detecciones: int, umbral: float) -> str:
     )
 
 
+def veredicto_falsos(confianza_maxima: float, disparos: int, umbral: float) -> str:
+    """Veredicto del modo --falsos: aca CERO es el buen resultado."""
+    if disparos == 0:
+        margen = umbral - confianza_maxima
+        if margen > 0.1:
+            return (
+                f"PERFECTO. Ningún falso positivo, y hablando normal el modelo no\n"
+                f"  pasó de {confianza_maxima:.3f}, con {margen:.2f} de margen hasta el\n"
+                f"  umbral {umbral}. Este umbral es seguro. Dejalo así."
+            )
+        return (
+            f"BIEN, pero justo. Ningún disparo, pero llegaste a {confianza_maxima:.3f}\n"
+            f"  contra un umbral de {umbral}: solo {margen:.2f} de margen. Va a fallar\n"
+            "  alguna vez. Si te molesta, subí el umbral un poco y volvé a probar\n"
+            "  que siga reconociéndote."
+        )
+
+    return (
+        f"DEMASIADO SENSIBLE. Se disparó {disparos} veces hablando de otra cosa,\n"
+        f"  y llegó a {confianza_maxima:.3f}. Con este umbral Jarvis se va a activar\n"
+        "  solo mientras hablás o mirás un video.\n\n"
+        f"  Subí wakeword.threshold por encima de {confianza_maxima:.2f} en\n"
+        "  config.local.yaml y repetí LAS DOS pruebas: si al subirlo deja de\n"
+        "  reconocerte, el modelo en inglés no da para tu voz y toca entrenar\n"
+        "  uno propio en español."
+    )
+
+
 def main() -> None:
+    # Modo falsos positivos: hablar de todo MENOS la wake word. Es la prueba
+    # que de verdad valida un umbral bajo. Que no se dispare en silencio no
+    # dice nada: el riesgo real es una conversacion o un video de YouTube.
+    modo_falsos = "--falsos" in sys.argv
+
     config = cargar_config()
     detector = WakeWordDetector(config.wakeword)
     umbral = config.wakeword.threshold
@@ -107,9 +140,16 @@ def main() -> None:
     print(f"Micrófono     : dispositivo {config.audio.input_device_index}")
     print(f"Modelo        : {config.wakeword.model}")
     print(f"Umbral        : {umbral}\n")
-    print(f"Decí 'hey jarvis' {INTENTOS} veces, separadas 3 segundos.")
-    print("Pronuncialo natural, NO fuerces acento inglés.")
-    print(f"Tenés {DURACION_S} segundos. Empezá.\n")
+
+    if modo_falsos:
+        print("MODO FALSOS POSITIVOS")
+        print("Hablá normal de CUALQUIER cosa, menos 'hey jarvis'. Contá tu día,")
+        print("leé algo en voz alta, poné un video. Lo que sea, pero sin decirla.")
+        print(f"\nNO debería detectar NADA. Tenés {DURACION_S} segundos.\n")
+    else:
+        print(f"Decí 'hey jarvis' {INTENTOS} veces, separadas 3 segundos.")
+        print("Pronuncialo natural, NO fuerces acento inglés.")
+        print(f"Tenés {DURACION_S} segundos. Empezá.\n")
 
     with AudioCapture(config.audio, on_block=al_llegar_bloque):
         inicio = time.monotonic()
@@ -121,7 +161,10 @@ def main() -> None:
     top = sorted(confianzas, reverse=True)[:5]
 
     print("\n" + "=" * 64)
-    print(f"Detecciones        : {len(detecciones)} de {INTENTOS}")
+    if modo_falsos:
+        print(f"Falsos positivos   : {len(detecciones)}   (deberían ser 0)")
+    else:
+        print(f"Detecciones        : {len(detecciones)} de {INTENTOS}")
     print(f"Confianza máxima   : {confianza_maxima:.3f}   (umbral: {umbral})")
     print(f"5 picos más altos  : {', '.join(f'{c:.3f}' for c in top)}")
     print(f"Nivel de audio máx : {nivel_maximo:.0f}")
@@ -135,7 +178,10 @@ def main() -> None:
         print("!" * 64)
         return
 
-    print(f"\n{veredicto(confianza_maxima, len(detecciones), umbral)}")
+    if modo_falsos:
+        print(f"\n{veredicto_falsos(confianza_maxima, len(detecciones), umbral)}")
+    else:
+        print(f"\n{veredicto(confianza_maxima, len(detecciones), umbral)}")
 
 
 if __name__ == "__main__":
