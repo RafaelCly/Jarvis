@@ -69,3 +69,48 @@ def test_reiniciar_levanta_el_periodo_refractario():
 
     detector.reiniciar()
     assert detector.procesar(silencio) is not None
+
+
+def test_procesar_con_detalle_devuelve_la_cruda_aunque_no_dispare():
+    # Regresion: la herramienta de diagnostico reimplementaba el refractario
+    # y compartia el reloj con el refresco de pantalla, asi que reportaba
+    # 0 detecciones con confianzas reales de 0.94. La logica vive aca ahora.
+    detector = WakeWordDetector(WakewordConfig(threshold=0.99))
+    detector.reiniciar()
+
+    cruda, disparo = detector.procesar_con_detalle(np.zeros(BLOQUE, dtype=np.int16))
+
+    assert isinstance(cruda, float)   # siempre hay confianza
+    assert disparo is None            # pero no supero el umbral
+
+
+def test_procesar_con_detalle_dispara_cuando_supera_el_umbral():
+    detector = WakeWordDetector(WakewordConfig(threshold=0.0))
+    detector.reiniciar()
+
+    cruda, disparo = detector.procesar_con_detalle(np.zeros(BLOQUE, dtype=np.int16))
+
+    assert disparo == cruda
+
+
+def test_la_cruda_sigue_saliendo_durante_el_refractario():
+    # Sin esto, la barra de diagnostico se quedaria congelada dos segundos
+    # despues de cada deteccion y pareceria que el modelo dejo de oir.
+    detector = WakeWordDetector(WakewordConfig(threshold=0.0))
+    detector.reiniciar()
+    silencio = np.zeros(BLOQUE, dtype=np.int16)
+
+    detector.procesar_con_detalle(silencio)              # dispara
+    cruda, disparo = detector.procesar_con_detalle(silencio)  # refractario
+
+    assert disparo is None
+    assert isinstance(cruda, float)
+
+
+def test_procesar_sigue_funcionando_igual():
+    # La API vieja no cambia: main.py la usa.
+    detector = WakeWordDetector(WakewordConfig(threshold=0.0))
+    detector.reiniciar()
+
+    assert detector.procesar(np.zeros(BLOQUE, dtype=np.int16)) is not None
+    assert detector.procesar(np.zeros(BLOQUE, dtype=np.int16)) is None

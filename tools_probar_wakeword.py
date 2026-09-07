@@ -111,6 +111,9 @@ def main() -> None:
     detecciones: list[float] = []
     confianzas: list[float] = []
     niveles: list[float] = []
+
+    # Solo un reloj propio, y es cosmetico. El refractario lo lleva el
+    # detector, que es donde esta testeado.
     ultimo_pintado = 0.0
 
     def al_llegar_bloque(bloque: np.ndarray) -> None:
@@ -119,17 +122,19 @@ def main() -> None:
         nivel = float(np.abs(bloque).max())
         niveles.append(nivel)
 
-        # La confianza cruda, sin filtrar por umbral ni refractario: es el
-        # dato que dice si el modelo te oye aunque no llegue a disparar.
-        cruda = float(detector._modelo.predict(bloque).get(config.wakeword.model, 0.0))
+        # La cruda sale siempre; el disparo ya viene filtrado por umbral y
+        # refractario. Nada de reimplementar esa logica aca.
+        cruda, disparo = detector.procesar_con_detalle(bloque)
         confianzas.append(cruda)
 
-        if cruda >= umbral and time.monotonic() - ultimo_pintado > 2.0:
-            detecciones.append(cruda)
-            ultimo_pintado = time.monotonic()
-            print(f"\r   DETECTADA #{len(detecciones)}  (confianza {cruda:.2f})      ")
-        elif time.monotonic() - ultimo_pintado > 0.2:
-            ultimo_pintado = time.monotonic()
+        if disparo is not None:
+            detecciones.append(disparo)
+            print(f"\r   DETECTADA #{len(detecciones)}  (confianza {disparo:.2f})      ")
+            return
+
+        ahora = time.monotonic()
+        if ahora - ultimo_pintado > 0.2:
+            ultimo_pintado = ahora
             print(
                 f"\r   audio [{barra(nivel, 8000)}]  "
                 f"confianza [{barra(cruda, 1.0)}] {cruda:.2f}   ",

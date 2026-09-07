@@ -55,18 +55,32 @@ class WakeWordDetector:
         None significa "no era la wake word", tanto si la confianza no llego
         al umbral como si todavia estamos en el periodo refractario.
         """
-        if time.monotonic() - self._ultimo_disparo < REFRACTARIO_S:
-            return None
+        _, disparo = self.procesar_con_detalle(bloque)
+        return disparo
 
+    def procesar_con_detalle(self, bloque: np.ndarray) -> tuple[float, float | None]:
+        """Devuelve (confianza_cruda, disparo).
+
+        La confianza cruda sale SIEMPRE, aunque no llegue al umbral o estemos
+        en periodo refractario. Es lo que necesitan las herramientas de
+        diagnostico para distinguir "no te reconoce" de "te reconoce pero el
+        umbral esta alto", y por eso vive aca y no en un script: cuando la
+        logica del refractario se duplicaba afuera, una version quedo mal y
+        reportaba cero detecciones con confianzas de 0.94.
+        """
         predicciones = self._modelo.predict(bloque)
         confianza = float(predicciones.get(self._nombre, 0.0))
 
-        if confianza < self._umbral:
-            return None
+        ahora = time.monotonic()
+        if ahora - self._ultimo_disparo < REFRACTARIO_S:
+            return confianza, None
 
-        self._ultimo_disparo = time.monotonic()
+        if confianza < self._umbral:
+            return confianza, None
+
+        self._ultimo_disparo = ahora
         log.info("Wake word detectada (confianza %.2f)", confianza)
-        return confianza
+        return confianza, confianza
 
     def reiniciar(self) -> None:
         """Olvida el periodo refractario. Util en tests y al reanudar."""
