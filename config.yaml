@@ -21,7 +21,7 @@ stt:
 
 tts:
   engine: piper
-  voice: es_MX-claude-high
+  voice: es_MX-ald-medium
 
 llm:
   model: gpt-4o-mini

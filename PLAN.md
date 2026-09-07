@@ -154,7 +154,7 @@ Premium, se cambia una línea de config y el resto del sistema no se entera.
 | Wake word | **`openWakeWord`** | Corre en ONNX sobre CPU en ~4 ms. **Trae un modelo pre-entrenado de "hey jarvis"** — literalmente lo que queremos. Y permite entrenar modelos propios gratis. |
 | VAD (fin de frase) | **`silero-vad`** | Bastante más preciso que `webrtcvad` en ambientes ruidosos, y también es ONNX ligero. |
 | Transcripción | **`faster-whisper`** (CTranslate2) | ~4x más rápido que el Whisper de referencia con la misma precisión. En la 4050 con `float16` es prácticamente instantáneo. |
-| Síntesis de voz | **Piper TTS** (primaria) + `edge-tts` (alternativa) | Piper es 100% local y responde en <100 ms. `edge-tts` suena mejor pero necesita internet y añade ~500 ms. Ambas detrás de la misma interfaz. |
+| Síntesis de voz | **Piper TTS** | **MEDIDO, y el plan original se equivocaba:** no son <100 ms sino ~1000 ms para una frase de 2 s (voz `medium`). No es falta de hilos: con 1, 4 o 10 el tiempo no cambia. `edge-tts` no mejora (940 ms al primer audio) y encima necesita internet, así que Piper se queda por ser offline. Ver §4.1. |
 | Cerebro | **OpenAI SDK** + `gpt-4o-mini` con *tool calling* | Ver §3. |
 | Validación | **`pydantic`** | Los argumentos que devuelve el LLM se validan contra un esquema antes de tocar nada. Esta es la barrera de seguridad. |
 | Búsqueda de archivos | **Everything + `es.exe`** | Indexa la MFT de NTFS y responde en milisegundos. Windows Search es lento e inconsistente. |
@@ -165,6 +165,29 @@ Premium, se cambia una línea de config y el resto del sistema no se entera.
 | Interfaz — bandeja | **`pystray`** | Icono de estado en la bandeja del sistema. Ver §10. |
 | Interfaz — HUD | **`pywebview`** (WebView2) | HUD flotante escrito en HTML/CSS. Fase 4, sujeto a spike. Ver §10. |
 | Tests | `pytest` | Ver §9. |
+
+### 4.1 Latencia del TTS: la parte más lenta
+
+Medido en el i7-12650H con la frase *"Son las tres y cinco de la tarde"* (2 s de audio),
+mediana de varias repeticiones tras calentar:
+
+| Voz | Latencia | Comentario |
+|---|---|---|
+| `es_MX-claude-high` | ~1400 ms | La mejor voz |
+| `es_MX-ald-medium` | ~1000 ms | **El default.** Equilibrio |
+| `es_ES-carlfm-x_low` | ~630 ms | La más rápida, se nota peor |
+| `edge-tts` (nube) | 940 ms al primer audio | No compensa: necesita internet |
+
+**Esto convierte al TTS en la latencia dominante de la respuesta**, por encima de Whisper
+en GPU (~300 ms). Dos consecuencias de diseño:
+
+- `decir()` reproduce **por trozos**. Piper trocea por oración, así que en una respuesta
+  de varias frases la primera empieza a sonar mientras se genera la segunda. En respuestas
+  de una sola frase no hay nada que ganar.
+- Las skills devuelven `speech` **corto**. Cada oración de más son ~500 ms de espera.
+
+La voz se cambia en `config.local.yaml` sin tocar código. Para comparar y escuchar:
+`py -3.11 tools_probar_voz.py --todas`
 
 ### `requirements.txt` inicial
 
