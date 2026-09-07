@@ -297,6 +297,32 @@ que más se usa, funcionamiento sin internet para lo básico, y menos gasto de c
 Lo que no matchea sube al LLM, que es donde está la magia de entender
 *"ponme algo tranquilo para estudiar"* o *"abrí donde tengo los pdfs de la uni"*.
 
+### 5.2b Cómo hay que pronunciar la wake word
+
+**El modelo `hey_jarvis` no entiende la J española.** Está entrenado con voces en inglés,
+donde "Jarvis" empieza con /dʒ/. La J española es /x/, el sonido gutural de "jamón": un
+fonema completamente distinto que el modelo nunca vio.
+
+Medido sintetizando cada variante con Piper y puntuándola con el modelo:
+
+| Cómo se dice | Confianza |
+|---|---|
+| "hey jarvis" con voz inglesa nativa | 0.998 |
+| **"ey YAR-vis"** — voz española, J como Y | **0.988** |
+| "ey LLAR-vis" — voz española, con LL | 0.988 |
+| "ey JER-vis" — J española gutural | 0.334 |
+| "oye jarvis" | 0.001 |
+
+**No hace falta impostar acento inglés ni entrenar un modelo propio.** Basta pronunciar la
+J como la Y de "yo": **"ey YAR-vis"**. Es un sonido natural en español y el modelo lo
+reconoce casi perfecto.
+
+Así se descubrió, y sirve como método para diagnósticos parecidos: la grabación de los
+intentos se pasó por Whisper, que transcribió *"¡Ey, Jervis!"*. Ahí quedó claro que el
+problema no era el volumen, ni el micrófono, ni el umbral, sino que se estaba diciendo una
+palabra fonéticamente distinta de la que el modelo espera. **Riesgo R2 cerrado sin escribir
+código.**
+
 ### 5.3 Detección de palmadas (sin IA)
 
 Una palmada tiene una firma acústica muy distinguible: **transitorio de banda ancha,

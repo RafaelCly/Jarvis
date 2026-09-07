@@ -152,9 +152,11 @@ def main() -> None:
         print("leé algo en voz alta, poné un video. Lo que sea, pero sin decirla.")
         print(f"\nNO debería detectar NADA. Tenés {DURACION_S} segundos.\n")
     else:
-        print(f"Decí 'hey jarvis' {INTENTOS} veces, separadas 3 segundos.")
-        print("Pronuncialo natural, NO fuerces acento inglés.")
-        print(f"Tenés {DURACION_S} segundos. Empezá.\n")
+        print(f"Decí la wake word {INTENTOS} veces, separadas 3 segundos.")
+        print('IMPORTANTE: la J como Y española  ->  "ey YAR-vis"')
+        print('NO "ey JER-vis" con J de jamón: ese fonema no existe en inglés')
+        print("y el modelo no lo reconoce (PLAN.md §5.2b).")
+        print(f"\nTenés {DURACION_S} segundos. Empezá.\n")
 
     with AudioCapture(config.audio, on_block=al_llegar_bloque):
         inicio = time.monotonic()

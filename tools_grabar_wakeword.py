@@ -54,8 +54,11 @@ def grabar(config) -> Path:
             flush=True,
         )
 
-    print("Decí 'hey jarvis' 10 veces, separadas unos 3 segundos.")
-    print("Pronuncialo como te salga natural. Empezá.\n")
+    print("Decí la wake word 10 veces, separadas unos 3 segundos.")
+    print('IMPORTANTE: la J como Y española  ->  "ey YAR-vis"')
+    print('NO "ey JER-vis" con J de jamón: ese fonema no existe en inglés')
+    print("y el modelo no lo reconoce (PLAN.md §5.2b).\n")
+    print("Empezá.\n")
 
     with AudioCapture(config.audio, on_block=al_llegar):
         while time.monotonic() - inicio < DURACION_S:
