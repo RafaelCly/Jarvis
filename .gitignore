@@ -47,3 +47,9 @@ desktop.ini
 
 # NOTA: tests/fixtures/audio/*.wav SI se commitean.
 # Son el dataset que valida el detector de palmadas (ver PLAN.md §8).
+
+# Dataset de audio para validar los detectores (PLAN.md §9).
+# Los WAV de tests/fixtures/audio SI se versionan: son pocos y chicos,
+# y sin ellos no hay forma de reproducir un diagnostico.
+!tests/fixtures/audio/
+!tests/fixtures/audio/*.wav
